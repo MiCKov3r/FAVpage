@@ -1,3 +1,5 @@
+<img src="./screenshot.jpg" />
+
 # FAVpage
 
 A personal start page / homelab dashboard in the spirit of Homarr or Heimdall — except the whole app is **a single HTML file with zero dependencies**. No server, no build step, no framework. Open it in a browser and it just works.

@@ -15,12 +15,31 @@
 		--text: #e7eaf0;
 		--muted: #8a93a6;
 		--line: #2a2f3a;
+		--bg-glow: #1a2030;                    /* žiara v gradiente pozadia */
+		--group-bg: rgba(255,255,255,0.06);    /* pozadie skupiny (sieť presvitá) */
+		--grid-dot: rgba(255,255,255,.025);    /* mriežka v režime úprav */
+		--avatar-bg: #2a3040;                  /* podklad ikony */
 		--radius: 14px;
+	}
+	/* svetlá téma: trieda .light na <html>, prepína sa tlačidlom v hlavičke */
+	html.light {
+		--bg: #eef1f6;
+		--bg2: #ffffff;
+		--card: #ffffff;
+		--tile: #ffffff;
+		--tile-h: #e7ecf4;
+		--text: #1d2433;
+		--muted: #64708a;
+		--line: #d8dee9;
+		--bg-glow: #dde5f2;
+		--group-bg: rgba(20,40,80,0.05);
+		--grid-dot: rgba(0,0,0,.04);
+		--avatar-bg: #dfe5ef;
 	}
 	* { box-sizing: border-box; }
 	html, body { margin: 0; height: 100%; }
 	body {
-		background: radial-gradient(1200px 600px at 70% -10%, #1a2030 0%, var(--bg) 60%);
+		background: radial-gradient(1200px 600px at 70% -10%, var(--bg-glow) 0%, var(--bg) 60%);
 		color: var(--text);
 		font: 15px/1.4 system-ui, "Segoe UI", Roboto, sans-serif;
 		-webkit-font-smoothing: antialiased;
@@ -75,16 +94,16 @@
 	}
 	body.editing main {
 		background-image:
-			linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+			linear-gradient(var(--grid-dot) 1px, transparent 1px),
+			linear-gradient(90deg, var(--grid-dot) 1px, transparent 1px);
 		background-size: 20px 20px;
 	}
 	/* animované pozadie: sieť bodov pod celým obsahom, neblokuje ovládanie */
 	#bgnet { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 	.group {
 		position: absolute; width: 300px;
-		/* biela s nízkou alfou ≈ pôvodná --card (#1c2029), ale sieť za skupinou presvitá */
-		background: rgba(255,255,255,0.06);
+		/* nízka alfa ≈ odtieň --card, ale sieť za skupinou presvitá */
+		background: var(--group-bg);
 		border: 1px solid var(--line);
 		border-radius: var(--radius); padding: 14px 14px 16px;
 	}
@@ -136,6 +155,8 @@
 	.tile:hover::before { opacity: 1; }
 	/* lasso výber viacerých liniek (režim úprav) */
 	.tile.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+	/* aktívny výsledok vyhľadávania (Enter ho otvorí, šípky posúvajú) */
+	.tile.hit { outline: 2px solid var(--accent); outline-offset: 2px; background: var(--tile-h); }
 	#lasso {
 		position: fixed; z-index: 45; display: none; pointer-events: none;
 		border: 1px dashed var(--accent); border-radius: 4px;
@@ -145,7 +166,7 @@
 	.avatar {
 		width: 46px; height: 46px; border-radius: 11px; flex: 0 0 46px;
 		display: grid; place-items: center; font-weight: 700; font-size: 20px; color: #fff;
-		background: #2a3040; overflow: hidden;
+		background: var(--avatar-bg); overflow: hidden;
 	}
 	.avatar-img { width: 100%; height: 100%; object-fit: contain; display: block; }
 	.tile-label {
@@ -176,8 +197,14 @@
 	}
 	body.editing .add-tile { display: flex; }
 	.add-tile:hover { border-color: var(--accent); color: var(--text); }
-	#addGroup, #addLink, #embedIcons { display: none; }
+	#addGroup, #addLink, #embedIcons, #accentPick { display: none; }
 	body.editing #addGroup, body.editing #addLink, body.editing #embedIcons { display: inline-flex; }
+	/* picker akcentovej farby: viditeľný len v režime úprav, tvárou ako ikonové tlačidlo */
+	body.editing #accentPick { display: inline-block; }
+	#accentPick { width: 38px; height: 31px; padding: 3px 4px; background: var(--bg2);
+		border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+		opacity: .3; transition: opacity .15s; }
+	#accentPick:hover { opacity: 1; }
 	/* transient toast (fixed, no layout impact) – auto-hides; no permanent status bar */
 	.hint {
 		position: fixed; left: 22px; bottom: 16px; z-index: 40; max-width: min(70ch, 90vw);
@@ -204,7 +231,7 @@
 	.modal-card textarea { font-family: ui-monospace, monospace; font-size: 11px; }
 	.field-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
 	.icon-preview { display: flex; align-items: center; gap: 10px; margin-top: 8px; min-height: 0; }
-	.icon-preview img { width: 40px; height: 40px; object-fit: contain; border-radius: 9px; background: #2a3040; }
+	.icon-preview img { width: 40px; height: 40px; object-fit: contain; border-radius: 9px; background: var(--avatar-bg); }
 	.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 	.check-row { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; color: var(--text); font-size: 13px; cursor: pointer; }
 	.modal-card input[type="checkbox"] { width: auto; }
@@ -238,8 +265,10 @@
 		<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>
 	<button class="btn icon" id="embedIcons" title="Stiahnuť a vložiť ikony do links.js (offline)" aria-label="Vložiť ikony" data-i18n-title="embed_title" data-i18n-aria="embed_aria">
 		<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+	<input type="color" id="accentPick" value="#5b8cff" title="Farba akcentu" data-i18n-title="accent_title">
 	<button class="btn icon" id="editBtn" title="Upraviť" aria-label="Upraviť" data-i18n-aria="edit">
 		<svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+	<button class="btn icon" id="themeBtn" title="Svetlý / tmavý režim" aria-label="Theme" data-i18n-title="theme_title" data-i18n-aria="theme_title"></button>
 	<button class="btn icon" id="langBtn" title="Switch language / Prepnúť jazyk" aria-label="Language" data-i18n-title="lang_title"><span id="langCode">EN</span></button>
 </header>
 
@@ -326,6 +355,8 @@
 			done: "Hotovo",
 			del: "Zmazať",
 			lang_title: "Switch language / Prepnúť jazyk",
+			theme_title: "Svetlý / tmavý režim",
+			accent_title: "Farba akcentu (ukladá sa do links.js)",
 			new_link: "Nový link",
 			new_link_free: "Nový link (mimo skupinu)",
 			edit_link: "Upraviť link",
@@ -378,6 +409,7 @@
 			handle_remembered: "Súbor zapamätaný – klikni Uložiť pre povolenie.",
 			file_conflict: "links.js medzitým zmenil iný počítač – máš aj lokálne neuložené zmeny. Uložením prepíšeš súbor.",
 			newer_loaded: "Načítaná novšia verzia zo súboru ({time}).",
+			drop_added: "Pridané: „{title}“ – detaily doladíš cez ✎ v režime úprav.",
 			edit_hint: "Režim úprav: ⠿ ťahaj skupinu kdekoľvek. Pravý dolný roh skupiny = zmena veľkosti. Ikonu ťahaj voľne kamkoľvek – v rámci skupiny na ľubovoľné miesto, do inej skupiny, alebo na voľnú plochu (= samostatná ikona). Prvky sa neprekrývajú. + v hlavičke skupiny pridá link, ✎ uprav, ✕ zmaž.",
 			restored_hint: "Obnovené neuložené zmeny z tohto prehliadača – nezabudni Uložiť."
 		},
@@ -398,6 +430,8 @@
 			done: "Done",
 			del: "Delete",
 			lang_title: "Switch language / Prepnúť jazyk",
+			theme_title: "Light / dark mode",
+			accent_title: "Accent color (saved into links.js)",
 			new_link: "New link",
 			new_link_free: "New link (outside a group)",
 			edit_link: "Edit link",
@@ -450,6 +484,7 @@
 			handle_remembered: "File remembered – click Save to grant permission.",
 			file_conflict: "links.js was changed by another computer – and you have unsaved local changes. Saving will overwrite the file.",
 			newer_loaded: "Loaded a newer version from the file ({time}).",
+			drop_added: "Added: “{title}” – fine-tune it via ✎ in edit mode.",
 			edit_hint: "Edit mode: ⠿ drag a group anywhere. Bottom-right corner of a group = resize. Drag an icon freely – anywhere within its group, into another group, or onto empty space (= standalone icon). Elements never overlap. + in a group header adds a link, ✎ edits, ✕ deletes.",
 			restored_hint: "Restored unsaved changes from this browser – don't forget to Save."
 		}
@@ -491,6 +526,21 @@
 		render();              // tooltipy dlaždíc, ping bodky, tlačidlá skupín
 	}
 
+	// ---------- téma (svetlá/tmavá) ----------
+	// uložená voľba v prehliadači, prvá návšteva podľa systémovej preferencie
+	var theme = (function(){
+		try { var s = localStorage.getItem("FAV_theme"); if(s === "light" || s === "dark") return s; } catch(e){}
+		return (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+	})();
+	function applyTheme(){
+		document.documentElement.classList.toggle("light", theme === "light");
+		// ikona ukazuje, kam prepneš: mesiac vo svetlom, slnko v tmavom
+		document.getElementById("themeBtn").innerHTML = theme === "light"
+			? '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+			: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+	}
+	applyTheme();
+
 	// ---------- state ----------
 	var PAD = 20;   // minimálne odsadenie prvkov od okrajov plochy (≈ medzera medzi linkami)
 	var FALLBACK = { meta:{version:1,updatedAt:null,accent:"#5b8cff"}, groups:[], links:[] };
@@ -517,7 +567,15 @@
 	var searchEl = document.getElementById("search");
 	var selected = new Set();   // id-čka liniek označených lasom
 
-	if (state.meta && state.meta.accent) document.documentElement.style.setProperty("--accent", state.meta.accent);
+	// akcentová farba: žije v dátach (meta.accent), takže sa synchronizuje medzi počítačmi
+	var accentPick = document.getElementById("accentPick");
+	function applyAccent(){
+		var a = (state.meta && state.meta.accent) || "#5b8cff";
+		document.documentElement.style.setProperty("--accent", a);
+		accentPick.value = a;
+		if (window.FAVaccentChanged) window.FAVaccentChanged();   // prefarbi časticové pozadie
+	}
+	applyAccent();
 
 	// ---------- helpers ----------
 	function clone(o){ return JSON.parse(JSON.stringify(o)); }
@@ -668,6 +726,7 @@
 
 		sizeGroupCanvases();
 		updateBoardHeight();
+		if(q) updateSearchHit();
 	}
 
 	// size each group's canvas so it contains its tiles and fills any extra resized height/width
@@ -1576,7 +1635,7 @@
 			var f = await fileHandle.getFile();
 			var text = await f.text();
 			var w = {}; (new Function("window", text))(w);
-			if(w.FAV){ state = clone(w.FAV); normalize(state); dirty = false; render();
+			if(w.FAV){ state = clone(w.FAV); normalize(state); dirty = false; applyAccent(); render();
 				// user chose the file as the source of truth → align the cache with it
 				try { localStorage.setItem("FAV_cache", JSON.stringify(state)); } catch(e){}
 				updateStatus(t("loaded_at", { time: new Date().toLocaleTimeString() })); }
@@ -1605,7 +1664,7 @@
 				setHint(t("file_conflict"));
 				return;
 			}
-			state = clone(w.FAV); normalize(state); render();
+			state = clone(w.FAV); normalize(state); applyAccent(); render();
 			try { localStorage.setItem("FAV_cache", JSON.stringify(state)); } catch(e){}
 			updateStatus(t("newer_loaded", { time: new Date(stateTs(state)).toLocaleTimeString() }));
 		} catch(e){ /* background check must never bother the user */ }
@@ -1648,6 +1707,84 @@
 		setHint(editing ? t("edit_hint") : "");
 	}
 
+	// ---------- pridanie linku ťahom z prehliadača (URL z adresného riadka / záložka / odkaz zo stránky) ----------
+	// natívny HTML5 drag&drop – nekoliduje s interným pointer-based ťahaním dlaždíc (tie majú draggable=false)
+	function dragUrl(dt){
+		var raw = dt.getData("text/uri-list") || dt.getData("text/plain") || "";
+		var line = "";
+		raw.split(/\r?\n/).some(function(s){ s = s.trim(); if(s && s.charAt(0) !== "#"){ line = s; return true; } return false; });
+		return /^https?:\/\//i.test(line) ? line : null;
+	}
+	function dragTitle(dt, url){
+		// ťah odkazu zo stránky / záložky nesie text v text/html; adresný riadok ho nemá
+		try {
+			var html = dt.getData("text/html");
+			if(html){
+				var a = new DOMParser().parseFromString(html, "text/html").querySelector("a");
+				var txt = (a ? a.textContent : "").trim().replace(/\s+/g, " ");
+				if(txt && txt.length <= 60 && !/^https?:\/\//i.test(txt)) return txt;
+			}
+		} catch(e){}
+		try {
+			var h = new URL(url).hostname.replace(/^www\./, "");
+			return h ? h.charAt(0).toUpperCase() + h.slice(1) : url;
+		} catch(e){ return url; }
+	}
+	// počas dragover sa dáta čítať nedajú, len typy – Files (ťah súboru) ignorujeme
+	function hasUrlDrag(dt){
+		if(!dt) return false;
+		return [].indexOf.call(dt.types || [], "text/uri-list") >= 0
+		    || [].indexOf.call(dt.types || [], "text/plain") >= 0;
+	}
+	function clearDropHover(){
+		board.classList.remove("board-drop");
+		[].forEach.call(board.querySelectorAll(".group.drag-over"), function(s){ s.classList.remove("drag-over"); });
+	}
+	board.addEventListener("dragover", function(e){
+		if(!hasUrlDrag(e.dataTransfer)) return;
+		e.preventDefault();
+		e.dataTransfer.dropEffect = "copy";
+		board.classList.add("board-drop");
+		var sec = e.target.closest && e.target.closest(".group");
+		[].forEach.call(board.querySelectorAll(".group.drag-over"), function(s){ if(s !== sec) s.classList.remove("drag-over"); });
+		if(sec) sec.classList.add("drag-over");
+	});
+	board.addEventListener("dragleave", function(e){
+		if(!e.relatedTarget || !board.contains(e.relatedTarget)) clearDropHover();
+	});
+	board.addEventListener("drop", function(e){
+		if(!hasUrlDrag(e.dataTransfer)) return;
+		e.preventDefault();
+		clearDropHover();
+		var url = dragUrl(e.dataTransfer);
+		if(!url) return;
+		var nl = { id: uid("l"), title: dragTitle(e.dataTransfer, url), url: url,
+			icon: "", label: "", bg: "", fg: "", order: state.links.length };
+		var sec = e.target.closest && e.target.closest(".group");
+		var g = sec ? state.groups.find(function(x){ return x.id === sec.dataset.gid; }) : null;
+		if(g){
+			// pustené do skupiny → dlaždica na mieste kurzora (stred pod kurzorom), prekryvy sa odsunú
+			var cr = sec.querySelector(".tiles").getBoundingClientRect();
+			nl.groupId = g.id;
+			nl.x = snap(Math.max(0, e.clientX - cr.left - TILE_W / 2));
+			nl.y = snap(Math.max(0, e.clientY - cr.top  - TILE_H / 2));
+			state.links.push(nl);
+			relayoutGroup(g.id, nl.id);
+		} else {
+			// pustené na voľnú plochu → samostatná dlaždica
+			var br = board.getBoundingClientRect();
+			nl.groupId = null;
+			nl.x = snap(Math.max(PAD, e.clientX - br.left + board.scrollLeft - TILE_W / 2));
+			nl.y = snap(Math.max(PAD, e.clientY - br.top  + board.scrollTop  - TILE_H / 2));
+			state.links.push(nl);
+			relayoutBoard(nl.id);
+		}
+		markDirty(); render();
+		// skupina mohla narásť o riadok → odsuň prvky pod ňou
+		if(g && relayoutBoard(g.id)){ markDirty(); render(); }
+		setHint(t("drop_added", { title: nl.title }));
+	});
+
 	// ---------- wire up ----------
 	document.getElementById("editBtn").onclick = toggleEdit;
 	document.getElementById("addGroup").onclick = addGroup;
@@ -1656,6 +1793,17 @@
 	document.getElementById("connectBtn").onclick = connect;
 	document.getElementById("saveBtn").onclick = saveToFile;
 	document.getElementById("langBtn").onclick = function(){ setLang(lang === "sk" ? "en" : "sk"); };
+	document.getElementById("themeBtn").onclick = function(){
+		theme = (theme === "light") ? "dark" : "light";
+		try { localStorage.setItem("FAV_theme", theme); } catch(e){}
+		applyTheme();
+	};
+	// input = živý náhľad počas výberu, change = potvrdenie → uloženie do dát
+	accentPick.addEventListener("input", function(){
+		state.meta.accent = accentPick.value;
+		applyAccent();
+	});
+	accentPick.addEventListener("change", function(){ markDirty(); });
 
 	// rotácia hover okraja dlaždice: rAF loop točí --spin len na dlaždici pod kurzorom
 	(function(){
@@ -1701,7 +1849,40 @@
 	};
 	// prázdny input po odchode fokusu sa sám zbalí
 	searchEl.addEventListener("blur", function(){ if(!searchEl.value.trim()) closeSearch(); });
-	searchEl.addEventListener("input", render);
+	searchEl.addEventListener("input", function(){ hitIdx = 0; render(); });
+	// klávesnica vo vyhľadávaní: ↓/↑ prepínajú výsledky, Enter otvorí označený;
+	// keď nič nenájde, Enter pošle výraz do webového vyhľadávača (meta.searchUrl, default Google)
+	var hitIdx = 0;
+	function searchHits(){
+		return searchEl.value.trim() ? [].slice.call(board.querySelectorAll(".tile")) : [];
+	}
+	function updateSearchHit(){
+		[].forEach.call(board.querySelectorAll(".tile.hit"), function(t){ t.classList.remove("hit"); });
+		var hits = searchHits();
+		if(!hits.length) return;
+		hitIdx = ((hitIdx % hits.length) + hits.length) % hits.length;
+		hits[hitIdx].classList.add("hit");
+		hits[hitIdx].scrollIntoView({ block: "nearest" });
+	}
+	searchEl.addEventListener("keydown", function(e){
+		if(e.key === "ArrowDown" || e.key === "ArrowUp"){
+			e.preventDefault();
+			hitIdx += (e.key === "ArrowDown" ? 1 : -1);
+			updateSearchHit();
+		} else if(e.key === "Enter"){
+			var q = searchEl.value.trim();
+			if(!q) return;
+			e.preventDefault();
+			var hits = searchHits();
+			if(hits.length){
+				window.open(hits[((hitIdx % hits.length) + hits.length) % hits.length].href, "_blank", "noopener");
+			} else {
+				var eng = (state.meta && state.meta.searchUrl) || "https://www.google.com/search?q=";
+				window.open(eng + encodeURIComponent(q), "_blank", "noopener");
+			}
+			closeSearch(); searchEl.blur();
+		}
+	});
 	document.addEventListener("keydown", function(e){
 		if(e.key==="/" && document.activeElement!==searchEl){ e.preventDefault(); openSearch(); }
 		if(e.key==="Escape"){ closeSearch(); searchEl.blur(); clearSelection(); }
@@ -1736,6 +1917,8 @@
 		return (n>>16&255) + "," + (n>>8&255) + "," + (n&255);
 	}
 	var COLOR = accentRGB();
+	// zmena akcentu v appke (picker / načítanie zo súboru) prefarbí sieť za behu
+	window.FAVaccentChanged = function(){ COLOR = accentRGB(); };
 	var pts = [], W = 0, H = 0;
 	function resize(){
 		var dpr = Math.min(window.devicePixelRatio || 1, 2);

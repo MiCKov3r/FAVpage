@@ -1,0 +1,61 @@
+# FAVpage
+
+[English](README.md) · **Slovensky**
+
+![FAVpage screenshot](screenshot.jpg)
+
+Osobná štartovacia stránka / homelab dashboard v duchu Homarr či Heimdall — ibaže celá appka je **jediný HTML súbor bez závislostí**. Žiadny server, žiadny build, žiadny framework. Otvoríš v prehliadači a funguje.
+
+## Funkcie
+
+- **Voľné rozloženie** — dlaždice aj skupiny potiahneš kamkoľvek na 20 px mriežke. Prvky sa nikdy neprekrývajú: pustenie na obsadené miesto odsunie susedov nadol („sprav miesto") a keď sa skupina zmenší, prvky pod ňou sa prisunú späť nahor.
+- **Skupiny** — kontajnery s vlastným názvom a farbou, meniteľnou veľkosťou. Dlaždica môže žiť v skupine alebo voľne na ploche.
+- **Lasso výber** — v režime úprav ťahaním po prázdnej ploche označíš viac dlaždíc naraz a celý výber presunieš jedným ťahom (na plochu aj do skupiny) so zachovaním rozostupov.
+- **Inteligentné ikony** — kaskáda: vlastná hodnota (názov z [dashboard-icons](https://github.com/homarr-labs/dashboard-icons), URL obrázka alebo `data:image/...` URI) → favicon stránky → farebný písmenový avatar. Jedným klikom sa všetky ikony stiahnu a vložia ako base64 pre plne offline použitie. Stiahnutý obsah sa validuje (MIME typ + magic bytes), takže HTML stránka vrátená namiesto faviconu sa nikdy nevloží.
+- **Sledovanie dostupnosti** — zaškrtni pri linke „Sledovať dostupnosť" a v pravom dolnom rohu dlaždice sa objaví bodka stavu: zelená = online, červená = offline, sivá = nezistené. Kontroluje sa pri načítaní stránky a potom každých 5 minút (max 4 requesty naraz, timeout 6 s, offline až po 2 zlyhaniach za sebou kvôli falošným poplachom od adblocku/proxy). Ide o HTTP kontrolu cez `no-cors` fetch — skutočný ICMP ping z prehliadača nejde a odpoveď je „opaque", takže zelená znamená „server odpovedal", nie „stránka je bez chyby".
+- **Dva jazyky** — rozhranie hovorí anglicky aj slovensky; prepínač je v hlavičke a voľba sa pamätá v prehliadači. Predvolená je angličtina.
+- **Hover efekt** — rotujúci gradientový okraj vo farbe dominantnej farby ikony (extrahuje sa za behu, cachuje sa).
+- **Animované pozadie** — jemná sieť bodov (alfa 30 %) kreslená na canvase pod obsahom; pri skrytom tabe sa sama pozastaví.
+- **Okamžité vyhľadávanie** — stlač `/` alebo klikni na lupu a pole sa rozroluje; `Esc` ho vyčistí a zbalí.
+- **Žiadne účty, žiadny cloud** — dáta sú jeden čitateľný JavaScript súbor vedľa HTML.
+
+## Ako začať
+
+1. Vezmi `index.html` a `links.js` a daj ich do jedného priečinka.
+2. Otvor `index.html` v **Chrome, Edge alebo Brave** (ukladanie používa File System Access API; ostatné prehliadače stránku zobrazia, ale neuložia).
+3. Klikni na **tlačidlo so sponkou** a vyber svoj `links.js` — odteraz sa každá zmena ukladá automaticky. Stav pripojenia ukazuje malá bodka v rohu tlačidla.
+4. Klikni na **ceruzku** pre režim úprav:
+   - skupiny ťahaj za úchyt `⠿`, veľkosť meň pravým dolným rohom,
+   - dlaždice ťahaj kamkoľvek — v rámci skupiny, do inej skupiny alebo na voľnú plochu,
+   - tlačidlami `+` pridávaš linky a skupiny.
+
+## Dáta, synchronizácia medzi počítačmi
+
+Všetky dáta žijú v `links.js` (`window.FAV = {...}`) — skupiny, linky, pozície, ikony — s časovou značkou obsahu (`meta.updatedAt`), ktorá sa posúva pri každej zmene.
+
+- Každá zmena sa zároveň cachuje v `localStorage`, takže neuložená práca prežije refresh aj pád prehliadača.
+- **Pri štarte** vyhráva novšia z dvojice súbor vs. cache; prevzatá neuložená práca sa označí, aby si ju nezabudol uložiť.
+- **Na pozadí** (pri fokuse okna a raz za minútu) sa porovnáva časová značka pripojeného súboru — keď iný počítač zapísal novšiu verziu, načíta sa automaticky. Lokálne neuložené zmeny sa nikdy potichu neprepíšu; konflikt len zobrazí upozornenie.
+
+Priečinok daj do ľubovoľného synchronizovaného umiestnenia (Nextcloud, Dropbox, Syncthing, sieťový disk…) a každý počítač vidí rovnakú plochu. Linky môže pridávať ktorýkoľvek stroj; časové značky to vyriešia.
+
+Ako poistka sa pri každom uložení sanitizujú ikony: každá `data:` ikona, ktorá nie je skutočný obrázok, sa zahodí a linka spadne späť na automatickú kaskádu ikon.
+
+## Klávesové skratky
+
+| Klávesa | Akcia |
+|---|---|
+| `/` | otvor a zafokusuj vyhľadávanie |
+| `Esc` | vyčisti vyhľadávanie / zruš výber / zavri dialóg |
+| `Enter` | potvrď dialóg |
+
+## Technické poznámky
+
+- Jediný súbor vanilla JavaScriptu (štýl ES5) a CSS, bez závislostí.
+- Kolízne rozloženie je jednoduchý osovo zarovnaný „pack down" algoritmus — pustený prvok ostáva, prekrývajúci sa susedia sa posunú nadol len o toľko, koľko treba; vždy skončí, lebo y iba rastie.
+- Kontrola dostupnosti používa `fetch(url, { mode: "no-cors" })` s timeoutom cez `AbortController`; linky sa prihlasujú jednotlivo (`ping: true` v `links.js`), takže stránka nestrieľa requesty za linky, ktoré nesleduješ.
+- Lokálny náhľad pri vývoji: ľubovoľný statický server, napr. `python -m http.server`.
+
+## Podpora prehliadačov
+
+Plná funkčnosť (vrátane ukladania) vyžaduje Chromium prehliadač s File System Access API — Chrome, Edge, Brave, Opera. Firefox a Safari stránku zobrazia, ale do `links.js` nezapíšu.

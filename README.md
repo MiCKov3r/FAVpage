@@ -1,6 +1,8 @@
-<img src="./screenshot.jpg" />
-
 # FAVpage
+
+**English** · [Slovensky](README.sk.md)
+
+![FAVpage screenshot](screenshot.jpg)
 
 A personal start page / homelab dashboard in the spirit of Homarr or Heimdall — except the whole app is **a single HTML file with zero dependencies**. No server, no build step, no framework. Open it in a browser and it just works.
 
@@ -10,6 +12,8 @@ A personal start page / homelab dashboard in the spirit of Homarr or Heimdall �
 - **Groups** — resizable containers with custom titles and colors. Tiles can live inside a group or float freely on the board.
 - **Lasso multi-select** — in edit mode, drag across empty space to select multiple tiles, then move the whole selection at once (onto the board or into a group), keeping relative spacing.
 - **Smart icons** — icon resolution cascade: custom value (a [dashboard-icons](https://github.com/homarr-labs/dashboard-icons) name, an image URL, or a `data:image/...` URI) → site favicon → colored letter avatar. One click downloads all icons and embeds them as base64 for fully offline use. Downloaded content is validated (MIME type + magic bytes), so an HTML page served instead of a favicon never gets embedded.
+- **Availability monitoring** — tick "Watch availability" on a link and a status dot appears in the tile's bottom-right corner: green = online, red = offline, gray = unknown. Checked on page load and every 5 minutes (max 4 requests in parallel, 6 s timeout, offline only after 2 consecutive failures to avoid adblock/proxy false alarms). It is an HTTP reachability check via `no-cors` fetch — a real ICMP ping is not possible from a browser, and since the response is opaque, green means "the server responded", not "the page has no errors".
+- **Two languages** — the UI speaks English and Slovak; the switcher sits in the header and the choice is remembered in the browser. Default is English.
 - **Hover effect** — a rotating gradient border in the icon's dominant color (extracted at runtime, cached).
 - **Animated background** — a subtle particle network (30 % alpha) drawn on a canvas behind the content; pauses automatically when the tab is hidden.
 - **Instant search** — press `/` or click the magnifier to roll out the search box; `Esc` clears and collapses it.
@@ -19,7 +23,7 @@ A personal start page / homelab dashboard in the spirit of Homarr or Heimdall �
 
 1. Grab `index.html` and `links.js` and put them in one folder.
 2. Open `index.html` in **Chrome, Edge, or Brave** (saving uses the File System Access API; other browsers can view the page but not save).
-3. Click the **paperclip button** and pick your `links.js` — from now on every change is saved automatically.
+3. Click the **paperclip button** and pick your `links.js` — from now on every change is saved automatically. The connection state shows as a small dot in the button's corner.
 4. Click the **pencil button** to enter edit mode:
    - drag groups by the `⠿` handle, resize them by the bottom-right corner,
    - drag tiles anywhere — within a group, into another group, or onto the open board,
@@ -47,8 +51,9 @@ As a safety net, every save sanitizes icon data: any `data:` icon that is not a 
 
 ## Tech notes
 
-- Single file: ~180 lines of CSS and ~1000 lines of vanilla ES5-style JavaScript, no dependencies.
+- Single file of vanilla ES5-style JavaScript and CSS, no dependencies.
 - Collision layout is a simple axis-aligned "pack down" algorithm — the dropped element stays, overlapping neighbours shift down just enough to clear; it always terminates because y only ever increases.
+- Availability checks use `fetch(url, { mode: "no-cors" })` with an `AbortController` timeout; links opt in individually (`ping: true` in `links.js`), so the page never fires requests for links you don't watch.
 - Local preview during development: any static server, e.g. `python -m http.server`.
 
 ## Browser support

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="sk">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -58,9 +58,13 @@
 	.btn:hover { background: var(--tile-h); }
 	.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 	.btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-	.btn.icon { display: inline-flex; align-items: center; justify-content: center; padding: 7px 9px; min-width: 38px; }
+	.btn.icon { display: inline-flex; align-items: center; justify-content: center; padding: 7px 9px; min-width: 38px; position: relative; }
 	.btn.icon svg { width: 17px; height: 17px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-	.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+	/* prepínač jazyka: malé písmená kódu jazyka, výška zarovnaná s ikonovými tlačidlami */
+	#langCode { font-size: 10px; font-weight: 700; letter-spacing: .5px; line-height: 17px; color: var(--muted); }
+	#langBtn:hover #langCode { color: var(--text); }
+	/* indikátor pripojenia v pravom dolnom rohu tlačidla (ako ping bodka na dlaždici) */
+	.dot { position: absolute; right: 4px; bottom: 4px; width: 8px; height: 8px; border-radius: 50%; }
 	.dot.ok { background: #46c46a; } .dot.off { background: #c9a13b; }
 
 	main {
@@ -152,6 +156,11 @@
 	}
 	.tile-name { font-size: 10px; font-weight: 500; line-height: 1.2; max-width: 100%;
 		overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	/* ping: bodka stavu dostupnosti v pravom dolnom rohu dlaždice (sivá = nezistené) */
+	.ping-dot { position: absolute; right: 5px; bottom: 5px; width: 8px; height: 8px;
+		border-radius: 50%; background: var(--muted); pointer-events: none; z-index: 2; }
+	.ping-dot.online  { background: #46c46a; box-shadow: 0 0 5px rgba(70,196,106,.8); }
+	.ping-dot.offline { background: #e05252; box-shadow: 0 0 5px rgba(224,82,82,.8); }
 	.tile .mini { position: absolute; top: -7px; right: -7px; display: none; gap: 3px; }
 	body.editing .tile .mini { display: flex; }
 	body.editing .tile { cursor: grab; }
@@ -216,23 +225,22 @@
 <header>
 	<div class="brand">FAV<b>page</b></div>
 	<div class="spacer"></div>
-	<input id="search" type="search" placeholder="Hľadať…  (/ )" autocomplete="off">
-	<button class="btn icon" id="searchBtn" title="Hľadať (/)" aria-label="Hľadať">
+	<input id="search" type="search" placeholder="Hľadať…  (/ )" autocomplete="off" data-i18n-ph="search_ph">
+	<button class="btn icon" id="searchBtn" title="Hľadať (/)" aria-label="Hľadať" data-i18n-title="search_title" data-i18n-aria="search_aria">
 		<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-	<button class="btn icon" id="reloadBtn" title="Načítať zo súboru (Nextcloud sync)" aria-label="Načítať">
-		<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
-	<button class="btn icon" id="connectBtn" title="Pripojiť links.js pre ukladanie" aria-label="Pripojiť"><span class="dot off" id="connDot"></span>
+	<button class="btn icon" id="connectBtn" title="Pripojiť links.js pre ukladanie" aria-label="Pripojiť" data-i18n-aria="connect_aria"><span class="dot off" id="connDot"></span>
 		<svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-	<button class="btn icon" id="saveBtn" title="Uložiť do links.js" aria-label="Uložiť">
+	<button class="btn icon" id="saveBtn" title="Uložiť do links.js" aria-label="Uložiť" data-i18n-title="save_title" data-i18n-aria="save_aria">
 		<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
-	<button class="btn icon" id="addLink" title="Pridať link" aria-label="Pridať link">
+	<button class="btn icon" id="addLink" title="Pridať link" aria-label="Pridať link" data-i18n-title="add_link" data-i18n-aria="add_link">
 		<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
-	<button class="btn icon" id="addGroup" title="Pridať skupinu" aria-label="Pridať skupinu">
+	<button class="btn icon" id="addGroup" title="Pridať skupinu" aria-label="Pridať skupinu" data-i18n-title="add_group" data-i18n-aria="add_group">
 		<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>
-	<button class="btn icon" id="embedIcons" title="Stiahnuť a vložiť ikony do links.js (offline)" aria-label="Vložiť ikony">
+	<button class="btn icon" id="embedIcons" title="Stiahnuť a vložiť ikony do links.js (offline)" aria-label="Vložiť ikony" data-i18n-title="embed_title" data-i18n-aria="embed_aria">
 		<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-	<button class="btn icon" id="editBtn" title="Upraviť" aria-label="Upraviť">
+	<button class="btn icon" id="editBtn" title="Upraviť" aria-label="Upraviť" data-i18n-aria="edit">
 		<svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+	<button class="btn icon" id="langBtn" title="Switch language / Prepnúť jazyk" aria-label="Language" data-i18n-title="lang_title"><span id="langCode">EN</span></button>
 </header>
 
 <main id="board"></main>
@@ -242,37 +250,38 @@
 <div class="modal hidden" id="modal">
 	<div class="modal-card">
 		<h3 id="modalTitle">Nový link</h3>
-		<label for="m-title">Názov</label>
+		<label for="m-title" data-i18n="name">Názov</label>
 		<input id="m-title" type="text" autocomplete="off">
 		<label for="m-url">URL</label>
-		<input id="m-url" type="text" autocomplete="off" placeholder="https://… alebo http://10.10.1.x">
-		<label for="m-label">Label (voliteľné – malý štítok v rohu ikony)</label>
-		<input id="m-label" type="text" autocomplete="off" placeholder="napr. NAS, DEV…">
-		<label for="m-icon">Ikona (voliteľné)</label>
-		<textarea id="m-icon" rows="3" placeholder="názov z dashboard-icons (napr. grafana) · URL obrázka · alebo RAW data:image/png;base64,…"></textarea>
-		<div class="field-hint">Prázdne = automaticky (favicon → písmeno). Môžeš vložiť aj base64 dáta obrázka (data:image/…).</div>
+		<input id="m-url" type="text" autocomplete="off" placeholder="https://… alebo http://10.10.1.x" data-i18n-ph="url_ph">
+		<label class="check-row"><input type="checkbox" id="m-ping"> <span data-i18n="ping_check">Sledovať dostupnosť – bodka v rohu (zelená = online, červená = offline, sivá = nezistené)</span></label>
+		<label for="m-label" data-i18n="label_lbl">Label (voliteľné – malý štítok v rohu ikony)</label>
+		<input id="m-label" type="text" autocomplete="off" placeholder="napr. NAS, DEV…" data-i18n-ph="label_ph">
+		<label for="m-icon" data-i18n="icon_lbl">Ikona (voliteľné)</label>
+		<textarea id="m-icon" rows="3" placeholder="názov z dashboard-icons (napr. grafana) · URL obrázka · alebo RAW data:image/png;base64,…" data-i18n-ph="icon_ph"></textarea>
+		<div class="field-hint" data-i18n="icon_hint">Prázdne = automaticky (favicon → písmeno). Môžeš vložiť aj base64 dáta obrázka (data:image/…).</div>
 		<div class="icon-preview" id="m-preview"></div>
 		<div class="color-row">
 			<div class="color-col">
-				<label for="m-bg">Pozadie karty</label>
+				<label for="m-bg" data-i18n="card_bg">Pozadie karty</label>
 				<div class="color-pick">
 					<input id="m-bg" type="color" value="#232834" disabled>
-					<label class="check-row"><input type="checkbox" id="m-bg-on"> vlastná</label>
+					<label class="check-row"><input type="checkbox" id="m-bg-on"> <span data-i18n="custom">vlastná</span></label>
 				</div>
 				<div class="swatches" id="m-bg-sw"></div>
 			</div>
 			<div class="color-col">
-				<label for="m-fg">Popis linky</label>
+				<label for="m-fg" data-i18n="link_fg">Popis linky</label>
 				<div class="color-pick">
 					<input id="m-fg" type="color" value="#e7eaf0" disabled>
-					<label class="check-row"><input type="checkbox" id="m-fg-on"> vlastná</label>
+					<label class="check-row"><input type="checkbox" id="m-fg-on"> <span data-i18n="custom">vlastná</span></label>
 				</div>
 				<div class="swatches" id="m-fg-sw"></div>
 			</div>
 		</div>
 		<div class="modal-actions">
-			<button class="btn" id="m-cancel">Zrušiť</button>
-			<button class="btn primary" id="m-save">Uložiť</button>
+			<button class="btn" id="m-cancel" data-i18n="cancel">Zrušiť</button>
+			<button class="btn primary" id="m-save" data-i18n="save">Uložiť</button>
 		</div>
 	</div>
 </div>
@@ -280,13 +289,13 @@
 <div class="modal hidden" id="groupModal">
 	<div class="modal-card">
 		<h3 id="groupModalTitle">Nová skupina</h3>
-		<label for="g-title">Názov</label>
+		<label for="g-title" data-i18n="name">Názov</label>
 		<input id="g-title" type="text" autocomplete="off">
-		<label class="check-row"><input type="checkbox" id="g-color-on"> Vlastná farba nadpisu</label>
+		<label class="check-row"><input type="checkbox" id="g-color-on"> <span data-i18n="group_color">Vlastná farba nadpisu</span></label>
 		<input id="g-color" type="color" value="#5b8cff" disabled>
 		<div class="modal-actions">
-			<button class="btn" id="g-cancel">Zrušiť</button>
-			<button class="btn primary" id="g-save">Uložiť</button>
+			<button class="btn" id="g-cancel" data-i18n="cancel">Zrušiť</button>
+			<button class="btn primary" id="g-save" data-i18n="save">Uložiť</button>
 		</div>
 	</div>
 </div>
@@ -295,6 +304,192 @@
 <script>
 (function () {
 	"use strict";
+
+	// ---------- i18n ----------
+	// všetky UI texty; dáta (názvy skupín/liniek v links.js) sa neprekladajú.
+	// hodnota môže byť objekt {one, few, other} – plurál sa vyberie podľa vars.n
+	var I18N = {
+		sk: {
+			search_ph: "Hľadať…  (/ )",
+			search_title: "Hľadať (/)",
+			search_aria: "Hľadať",
+			connect_title: "Pripojiť links.js pre ukladanie",
+			connect_aria: "Pripojiť",
+			connected_title: "Pripojené – ukladám automaticky",
+			save_title: "Uložiť do links.js",
+			save_aria: "Uložiť",
+			add_link: "Pridať link",
+			add_group: "Pridať skupinu",
+			embed_title: "Stiahnuť a vložiť ikony do links.js (offline)",
+			embed_aria: "Vložiť ikony",
+			edit: "Upraviť",
+			done: "Hotovo",
+			del: "Zmazať",
+			lang_title: "Switch language / Prepnúť jazyk",
+			new_link: "Nový link",
+			new_link_free: "Nový link (mimo skupinu)",
+			edit_link: "Upraviť link",
+			name: "Názov",
+			url_ph: "https://… alebo http://10.10.1.x",
+			ping_check: "Sledovať dostupnosť – bodka v rohu (zelená = online, červená = offline, sivá = nezistené)",
+			label_lbl: "Label (voliteľné – malý štítok v rohu ikony)",
+			label_ph: "napr. NAS, DEV…",
+			icon_lbl: "Ikona (voliteľné)",
+			icon_ph: "názov z dashboard-icons (napr. grafana) · URL obrázka · alebo RAW data:image/png;base64,…",
+			icon_hint: "Prázdne = automaticky (favicon → písmeno). Môžeš vložiť aj base64 dáta obrázka (data:image/…).",
+			card_bg: "Pozadie karty",
+			link_fg: "Popis linky",
+			custom: "vlastná",
+			cancel: "Zrušiť",
+			save: "Uložiť",
+			new_group: "Nová skupina",
+			edit_group: "Upraviť skupinu",
+			group_color: "Vlastná farba nadpisu",
+			drag_group: "Ťahaj pre presun skupiny",
+			add_link_group: "Pridať link do skupiny",
+			del_group: "Zmazať skupinu",
+			resize_group: "Ťahaj pre zmenu veľkosti skupiny",
+			preview_alt: "náhľad",
+			preview_fail: "náhľad sa nenačítal",
+			preview_cap: "náhľad ikony",
+			selected_hint: "Označené linky: {n} – ťahaj ktorúkoľvek z nich, presunie sa celý výber.",
+			del_link_q: "Zmazať „{title}“?",
+			del_group_q: "Zmazať skupinu „{title}“{extra}?",
+			del_group_links: { one: " aj s 1 linkou", other: " aj s {n} linkami" },
+			embed_progress: "Sťahujem ikony… ({i}/{n})",
+			embed_done: "Ikony vložené: {n}",
+			embed_failed: " · nedostupné (CORS/sieť): {n}",
+			embed_notimg: " · server nevrátil obrázok: {n}",
+			ping_online: "Online – server odpovedá",
+			ping_offline: "Offline – server neodpovedá",
+			ping_unknown: "Stav sa nepodarilo zistiť (timeout)",
+			ping_checking: "Zisťujem dostupnosť…",
+			no_fsapi: "Tento prehliadač nepodporuje File System Access API. Použi Chrome/Edge/Brave.",
+			no_write: "Bez povolenia na zápis sa nedá ukladať.",
+			connected_msg: "Pripojené – ukladám automaticky.",
+			err_connect: "Chyba pripojenia: {msg}",
+			saved_at: "Uložené {time}",
+			saved_cleaned: " · odstránené neplatné ikony (HTML/ne-obrázok): {n}",
+			err_save: "Chyba uloženia: {msg}",
+			connect_first: "Najprv Pripojiť súbor.",
+			reload_confirm: "Máš neuložené zmeny – načítaním zo súboru sa prepíšu. Pokračovať?",
+			loaded_at: "Načítané zo súboru {time}",
+			err_load: "Chyba načítania: {msg}",
+			handle_remembered: "Súbor zapamätaný – klikni Uložiť pre povolenie.",
+			file_conflict: "links.js medzitým zmenil iný počítač – máš aj lokálne neuložené zmeny. Uložením prepíšeš súbor.",
+			newer_loaded: "Načítaná novšia verzia zo súboru ({time}).",
+			edit_hint: "Režim úprav: ⠿ ťahaj skupinu kdekoľvek. Pravý dolný roh skupiny = zmena veľkosti. Ikonu ťahaj voľne kamkoľvek – v rámci skupiny na ľubovoľné miesto, do inej skupiny, alebo na voľnú plochu (= samostatná ikona). Prvky sa neprekrývajú. + v hlavičke skupiny pridá link, ✎ uprav, ✕ zmaž.",
+			restored_hint: "Obnovené neuložené zmeny z tohto prehliadača – nezabudni Uložiť."
+		},
+		en: {
+			search_ph: "Search…  (/ )",
+			search_title: "Search (/)",
+			search_aria: "Search",
+			connect_title: "Connect links.js for saving",
+			connect_aria: "Connect",
+			connected_title: "Connected – saving automatically",
+			save_title: "Save to links.js",
+			save_aria: "Save",
+			add_link: "Add link",
+			add_group: "Add group",
+			embed_title: "Download and embed icons into links.js (offline)",
+			embed_aria: "Embed icons",
+			edit: "Edit",
+			done: "Done",
+			del: "Delete",
+			lang_title: "Switch language / Prepnúť jazyk",
+			new_link: "New link",
+			new_link_free: "New link (outside a group)",
+			edit_link: "Edit link",
+			name: "Name",
+			url_ph: "https://… or http://10.10.1.x",
+			ping_check: "Monitor availability – dot in the corner (green = online, red = offline, grey = unknown)",
+			label_lbl: "Label (optional – small badge on the icon corner)",
+			label_ph: "e.g. NAS, DEV…",
+			icon_lbl: "Icon (optional)",
+			icon_ph: "dashboard-icons name (e.g. grafana) · image URL · or RAW data:image/png;base64,…",
+			icon_hint: "Empty = automatic (favicon → letter). You can also paste base64 image data (data:image/…).",
+			card_bg: "Card background",
+			link_fg: "Link caption",
+			custom: "custom",
+			cancel: "Cancel",
+			save: "Save",
+			new_group: "New group",
+			edit_group: "Edit group",
+			group_color: "Custom title color",
+			drag_group: "Drag to move the group",
+			add_link_group: "Add link to this group",
+			del_group: "Delete group",
+			resize_group: "Drag to resize the group",
+			preview_alt: "preview",
+			preview_fail: "preview failed to load",
+			preview_cap: "icon preview",
+			selected_hint: "Selected links: {n} – drag any of them to move the whole selection.",
+			del_link_q: "Delete “{title}”?",
+			del_group_q: "Delete group “{title}”{extra}?",
+			del_group_links: { one: " with its 1 link", other: " with its {n} links" },
+			embed_progress: "Downloading icons… ({i}/{n})",
+			embed_done: "Icons embedded: {n}",
+			embed_failed: " · unavailable (CORS/network): {n}",
+			embed_notimg: " · server did not return an image: {n}",
+			ping_online: "Online – server responds",
+			ping_offline: "Offline – server not responding",
+			ping_unknown: "Status unknown (timeout)",
+			ping_checking: "Checking availability…",
+			no_fsapi: "This browser does not support the File System Access API. Use Chrome/Edge/Brave.",
+			no_write: "Cannot save without write permission.",
+			connected_msg: "Connected – saving automatically.",
+			err_connect: "Connection error: {msg}",
+			saved_at: "Saved {time}",
+			saved_cleaned: " · removed invalid icons (HTML/non-image): {n}",
+			err_save: "Save error: {msg}",
+			connect_first: "Connect the file first.",
+			reload_confirm: "You have unsaved changes – loading from the file will overwrite them. Continue?",
+			loaded_at: "Loaded from file {time}",
+			err_load: "Load error: {msg}",
+			handle_remembered: "File remembered – click Save to grant permission.",
+			file_conflict: "links.js was changed by another computer – and you have unsaved local changes. Saving will overwrite the file.",
+			newer_loaded: "Loaded a newer version from the file ({time}).",
+			edit_hint: "Edit mode: ⠿ drag a group anywhere. Bottom-right corner of a group = resize. Drag an icon freely – anywhere within its group, into another group, or onto empty space (= standalone icon). Elements never overlap. + in a group header adds a link, ✎ edits, ✕ deletes.",
+			restored_hint: "Restored unsaved changes from this browser – don't forget to Save."
+		}
+	};
+	// jazyk: uložená voľba, inak angličtina
+	var lang = (function(){
+		try { var s = localStorage.getItem("FAV_lang"); if(s && I18N[s]) return s; } catch(e){}
+		return "en";
+	})();
+	function t(key, vars){
+		var v = (I18N[lang] || {})[key];
+		if(v == null) v = I18N.sk[key];
+		if(v == null) return key;
+		if(typeof v === "object"){
+			var n = vars ? vars.n : null;
+			v = (n === 1 && v.one) || (n >= 2 && n <= 4 && v.few) || v.other || v.one || "";
+		}
+		return String(v).replace(/\{(\w+)\}/g, function(m, k){
+			return vars && (k in vars) ? String(vars[k]) : m;
+		});
+	}
+	// statické texty v HTML nesú sk default + data-i18n(-title/-aria/-ph) kľúč
+	function applyI18n(){
+		document.documentElement.lang = lang;
+		[].forEach.call(document.querySelectorAll("[data-i18n]"), function(el){ el.textContent = t(el.dataset.i18n); });
+		[].forEach.call(document.querySelectorAll("[data-i18n-title]"), function(el){ el.title = t(el.dataset.i18nTitle); });
+		[].forEach.call(document.querySelectorAll("[data-i18n-aria]"), function(el){ el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+		[].forEach.call(document.querySelectorAll("[data-i18n-ph]"), function(el){ el.placeholder = t(el.dataset.i18nPh); });
+		// tlačidlá s dynamickým title podľa stavu appky
+		document.getElementById("editBtn").title = editing ? t("done") : t("edit");
+		document.getElementById("langCode").textContent = lang.toUpperCase();
+	}
+	function setLang(l){
+		lang = l;
+		try { localStorage.setItem("FAV_lang", l); } catch(e){}
+		applyI18n();
+		setHint("");           // zobrazený hint by ostal v starom jazyku
+		updateStatus();        // title tlačidla Pripojiť podľa stavu
+		render();              // tooltipy dlaždíc, ping bodky, tlačidlá skupín
+	}
 
 	// ---------- state ----------
 	var PAD = 20;   // minimálne odsadenie prvkov od okrajov plochy (≈ medzera medzi linkami)
@@ -425,7 +620,7 @@
 			if (g.h) sec.style.minHeight = g.h + "px";
 
 			var head = document.createElement("div"); head.className = "group-head";
-			var handle = document.createElement("span"); handle.className = "drag-handle"; handle.textContent = "⠿"; handle.title = "Ťahaj pre presun skupiny";
+			var handle = document.createElement("span"); handle.className = "drag-handle"; handle.textContent = "⠿"; handle.title = t("drag_group");
 			head.appendChild(handle);
 			var title = document.createElement("div"); title.className = "group-title";
 			title.textContent = g.title;
@@ -433,18 +628,18 @@
 			head.appendChild(title);
 			if (editing){
 				var addG = document.createElement("button"); addG.className="btn"; addG.textContent="+";
-				addG.style.padding="2px 8px"; addG.title="Pridať link do skupiny";
+				addG.style.padding="2px 8px"; addG.title=t("add_link_group");
 				addG.onclick = function(){ addLink(g.id); };
 				var edG = document.createElement("button"); edG.className="btn"; edG.textContent="✎";
-				edG.style.padding="2px 8px"; edG.title="Upraviť skupinu";
+				edG.style.padding="2px 8px"; edG.title=t("edit_group");
 				edG.onclick = function(){ editGroup(g); };
 				var delG = document.createElement("button"); delG.className="btn"; delG.textContent="✕";
-				delG.style.padding="2px 8px"; delG.title="Zmazať skupinu";
+				delG.style.padding="2px 8px"; delG.title=t("del_group");
 				delG.onclick = function(){ removeGroup(g.id); };
 				head.appendChild(addG); head.appendChild(edG); head.appendChild(delG);
 				enableFreeDrag(sec, handle, g);
 				var rh = document.createElement("div"); rh.className = "resize-handle";
-				rh.title = "Ťahaj pre zmenu veľkosti skupiny";
+				rh.title = t("resize_group");
 				enableResize(sec, rh, g);
 				sec.appendChild(rh);
 			}
@@ -565,10 +760,19 @@
 			a.appendChild(lb);
 		}
 
+		// bodka stavu dostupnosti (ping) v pravom dolnom rohu karty
+		if (l.ping){
+			var pdot = document.createElement("div");
+			var pst = pingState[l.id];
+			pdot.className = "ping-dot" + (pst ? " " + pst : "");
+			pdot.title = pingTitle(pst);
+			a.appendChild(pdot);
+		}
+
 		var mini = document.createElement("div"); mini.className="mini";
-		var ed = document.createElement("button"); ed.className="edit"; ed.textContent="✎"; ed.title="Upraviť";
+		var ed = document.createElement("button"); ed.className="edit"; ed.textContent="✎"; ed.title=t("edit");
 		ed.onclick = function(e){ e.preventDefault(); e.stopPropagation(); editLink(l); };
-		var dl = document.createElement("button"); dl.className="del"; dl.textContent="✕"; dl.title="Zmazať";
+		var dl = document.createElement("button"); dl.className="del"; dl.textContent="✕"; dl.title=t("del");
 		dl.onclick = function(e){ e.preventDefault(); e.stopPropagation(); removeLink(l.id); };
 		mini.appendChild(ed); mini.appendChild(dl);
 		a.appendChild(mini);
@@ -778,7 +982,7 @@
 			document.removeEventListener("pointerup", up);
 			lasso.style.display = "none";
 			if(!moved) clearSelection();   // obyčajný klik do plochy výber zruší
-			else if(selected.size) setHint("Označené linky: " + selected.size + " – ťahaj ktorúkoľvek z nich, presunie sa celý výber.");
+			else if(selected.size) setHint(t("selected_hint", { n: selected.size }));
 		}
 		document.addEventListener("pointermove", move);
 		document.addEventListener("pointerup", up);
@@ -990,6 +1194,7 @@
 	var mBg = document.getElementById("m-bg");
 	var mFgOn = document.getElementById("m-fg-on");
 	var mFg = document.getElementById("m-fg");
+	var mPing = document.getElementById("m-ping");
 	var mHeading = document.getElementById("modalTitle");
 	var modalSave = null;
 
@@ -1002,11 +1207,11 @@
 			else src = diSvg(v);   // dashboard-icons name
 		}
 		if (src){
-			var img = document.createElement("img"); img.alt="náhľad";
-			img.onerror = function(){ mPreview.innerHTML = '<span class="field-hint">náhľad sa nenačítal</span>'; };
+			var img = document.createElement("img"); img.alt=t("preview_alt");
+			img.onerror = function(){ mPreview.innerHTML = '<span class="field-hint">' + t("preview_fail") + '</span>'; };
 			img.src = src;
 			mPreview.appendChild(img);
-			var cap = document.createElement("span"); cap.className="field-hint"; cap.textContent="náhľad ikony";
+			var cap = document.createElement("span"); cap.className="field-hint"; cap.textContent=t("preview_cap");
 			mPreview.appendChild(cap);
 		}
 		loadPalette(src);   // refresh the colour swatches from this icon
@@ -1063,6 +1268,7 @@
 		else { mBgOn.checked = false; mBg.value = "#232834"; mBg.disabled = true; }
 		if (data.fg){ mFgOn.checked = true; mFg.value = data.fg; mFg.disabled = false; }
 		else { mFgOn.checked = false; mFg.value = "#e7eaf0"; mFg.disabled = true; }
+		mPing.checked = !!data.ping;
 		renderIconPreview();
 		modalSave = onSave;
 		modal.classList.remove("hidden");
@@ -1077,7 +1283,8 @@
 		if (fn) fn({ title: title, url: url, label: mLabel.value.trim(),
 			icon: cleanIcon(mIcon.value),
 			bg: mBgOn.checked ? mBg.value : "",
-			fg: mFgOn.checked ? mFg.value : "" });
+			fg: mFgOn.checked ? mFg.value : "",
+			ping: mPing.checked });
 	}
 	mBgOn.addEventListener("change", function(){ mBg.disabled = !mBgOn.checked; });
 	mFgOn.addEventListener("change", function(){ mFg.disabled = !mFgOn.checked; });
@@ -1093,36 +1300,44 @@
 
 	// ---------- edit ops ----------
 	function addLink(gid){
-		openLinkModal("Nový link", {}, function(d){
+		openLinkModal(t("new_link"), {}, function(d){
 			var spot = findFreeSpot(0, 0, TILE_W, TILE_H, groupSiblingRects(gid, null));
-			state.links.push({ id: uid("l"), title: d.title, url: d.url, icon: d.icon,
-				label: d.label, bg: d.bg, fg: d.fg, groupId: gid, x: spot.x, y: spot.y, order: linksOf(gid).length });
+			var nl = { id: uid("l"), title: d.title, url: d.url, icon: d.icon,
+				label: d.label, bg: d.bg, fg: d.fg, groupId: gid, x: spot.x, y: spot.y, order: linksOf(gid).length };
+			if(d.ping) nl.ping = true;
+			state.links.push(nl);
 			markDirty(); render();
+			if(nl.ping) pingLink(nl);
 			// the new link may have opened a new row → group grew; make room below it
 			if(relayoutBoard(gid)){ markDirty(); render(); }
 		});
 	}
 	// add a standalone link not belonging to any group (free-floating on the board)
 	function addFloatingLink(){
-		openLinkModal("Nový link (mimo skupinu)", {}, function(d){
+		openLinkModal(t("new_link_free"), {}, function(d){
 			var spot = findFreeSpot(20, 20, 88, 116, occupiedRects(null));
-			state.links.push({ id: uid("l"), title: d.title, url: d.url, icon: d.icon,
-				label: d.label, bg: d.bg, fg: d.fg, groupId: null, x: spot.x, y: spot.y, order: state.links.length });
+			var nl = { id: uid("l"), title: d.title, url: d.url, icon: d.icon,
+				label: d.label, bg: d.bg, fg: d.fg, groupId: null, x: spot.x, y: spot.y, order: state.links.length };
+			if(d.ping) nl.ping = true;
+			state.links.push(nl);
 			markDirty(); render();
+			if(nl.ping) pingLink(nl);
 		});
 	}
 	function editLink(l){
-		openLinkModal("Upraviť link", l, function(d){
+		openLinkModal(t("edit_link"), l, function(d){
 			l.title = d.title; l.url = d.url; l.icon = d.icon; l.label = d.label;
 			if (d.bg) l.bg = d.bg; else delete l.bg;
 			if (d.fg) l.fg = d.fg; else delete l.fg;
+			if (d.ping) l.ping = true; else { delete l.ping; delete pingState[l.id]; }
 			markDirty(); render();
+			if (l.ping) pingLink(l);
 		});
 	}
 	function removeLink(id){
 		var l = state.links.find(function(x){return x.id===id;});
 		if(!l) return;
-		if(!confirm("Zmazať „"+l.title+"“?")) return;
+		if(!confirm(t("del_link_q", { title: l.title }))) return;
 		var gid = l.groupId;
 		var sec = gid ? board.querySelector('.group[data-gid="'+gid+'"]') : null;
 		var oldH = sec ? sec.offsetHeight : 0;
@@ -1168,13 +1383,13 @@
 	});
 
 	function addGroup(){
-		openGroupModal("Nová skupina", {}, function(d){
+		openGroupModal(t("new_group"), {}, function(d){
 			state.groups.push({ id: uid("g"), title: d.title, color: d.color, order: state.groups.length });
 			markDirty(); render();
 		});
 	}
 	function editGroup(g){
-		openGroupModal("Upraviť skupinu", g, function(d){
+		openGroupModal(t("edit_group"), g, function(d){
 			g.title = d.title;
 			if (d.color) g.color = d.color; else delete g.color;
 			markDirty(); render();
@@ -1183,7 +1398,7 @@
 	function removeGroup(gid){
 		var g = state.groups.find(function(x){return x.id===gid;});
 		var n = linksOf(gid).length;
-		if(!confirm("Zmazať skupinu „"+g.title+"“"+(n?(" aj s "+n+" linkami"):"")+"?")) return;
+		if(!confirm(t("del_group_q", { title: g.title, extra: n ? t("del_group_links", { n: n }) : "" }))) return;
 		state.groups = state.groups.filter(function(x){return x.id!==gid;});
 		state.links = state.links.filter(function(x){return x.groupId!==gid;});
 		markDirty(); render();
@@ -1228,7 +1443,7 @@
 	}
 	async function embedIcons(){
 		var changed = 0, failed = 0, notImage = 0, total = state.links.length;
-		setHint("Sťahujem ikony… (0/" + total + ")");
+		setHint(t("embed_progress", { i: 0, n: total }));
 		for(var i=0;i<state.links.length;i++){
 			var l = state.links[i];
 			// only a data:image counts as embedded — a broken non-image data: gets re-fetched
@@ -1250,12 +1465,51 @@
 			if(uri){ l.icon = uri; changed++; }
 			else if(sawNonImage){ notImage++; }
 			else { failed++; }
-			setHint("Sťahujem ikony… (" + (i+1) + "/" + total + ")");
+			setHint(t("embed_progress", { i: i+1, n: total }));
 		}
 		if(changed){ markDirty(); render(); }
-		setHint("Ikony vložené: " + changed
-			+ (failed ? (" · nedostupné (CORS/sieť): " + failed) : "")
-			+ (notImage ? (" · server nevrátil obrázok: " + notImage) : ""));
+		setHint(t("embed_done", { n: changed })
+			+ (failed ? t("embed_failed", { n: failed }) : "")
+			+ (notImage ? t("embed_notimg", { n: notImage }) : ""));
+	}
+
+	// ---------- ping: kontrola dostupnosti liniek (HTTP, nie ICMP – to z prehliadača nejde) ----------
+	// no-cors fetch: vyriešený promise = server odpovedal → online (odpoveď je "opaque",
+	// status nevidíme, takže zelená znamená "server žije", nie "stránka je bez chyby");
+	// zamietnutý = offline (DNS/spojenie); timeout = nezistené (sivá)
+	var PING_TIMEOUT = 6000, PING_INTERVAL = 5 * 60000, PING_PARALLEL = 4;
+	var pingState = {};   // id → "online" | "offline" | "unknown"
+	function pingTitle(st){
+		return st==="online"  ? t("ping_online")
+		     : st==="offline" ? t("ping_offline")
+		     : st==="unknown" ? t("ping_unknown")
+		     : t("ping_checking");
+	}
+	function pingOnce(url){
+		return new Promise(function(res){
+			var ctrl = new AbortController();
+			var t = setTimeout(function(){ ctrl.abort(); }, PING_TIMEOUT);
+			fetch(url, { mode:"no-cors", cache:"no-store", signal: ctrl.signal })
+				.then(function(){ res("online"); })
+				.catch(function(e){ res(e && e.name==="AbortError" ? "unknown" : "offline"); })
+				.finally(function(){ clearTimeout(t); });
+		});
+	}
+	// offline až po 2 zlyhaniach za sebou – adblock/proxy vie zabiť request aj pri živom serveri
+	async function pingLink(l){
+		var st = await pingOnce(l.url);
+		if(st === "offline") st = await pingOnce(l.url);
+		pingState[l.id] = st;
+		var el = board.querySelector('.tile[data-id="'+l.id+'"] .ping-dot');
+		if(el){ el.className = "ping-dot " + st; el.title = pingTitle(st); }
+	}
+	async function pingAll(){
+		var q = state.links.filter(function(l){ return l.ping && l.url; });
+		if(!q.length) return;
+		var i = 0;
+		async function worker(){ while(i < q.length) await pingLink(q[i++]); }
+		var ws = []; for(var w = 0; w < PING_PARALLEL; w++) ws.push(worker());
+		await Promise.all(ws);
 	}
 
 	// ---------- File System Access ----------
@@ -1265,19 +1519,19 @@
 		       "window.FAV = " + JSON.stringify(state, null, 2) + ";\n";
 	}
 	async function connect(){
-		if(!window.showOpenFilePicker){ alert("Tento prehliadač nepodporuje File System Access API. Použi Chrome/Edge/Brave."); return; }
+		if(!window.showOpenFilePicker){ alert(t("no_fsapi")); return; }
 		try {
 			var [h] = await window.showOpenFilePicker({
 				types:[{description:"links.js", accept:{"text/javascript":[".js"]}}],
 				multiple:false
 			});
 			var perm = await h.requestPermission({ mode:"readwrite" });
-			if(perm!=="granted"){ alert("Bez povolenia na zápis sa nedá ukladať."); return; }
+			if(perm!=="granted"){ alert(t("no_write")); return; }
 			fileHandle = h;
 			await idbSet("linksHandle", h);
 			await reloadFromFile();   // pull latest synced version
-			updateStatus("Pripojené – ukladám automaticky.");
-		} catch(e){ if(e.name!=="AbortError") setHint("Chyba pripojenia: "+e.message); }
+			updateStatus(t("connected_msg"));
+		} catch(e){ if(e.name!=="AbortError") setHint(t("err_connect", { msg: e.message })); }
 	}
 	// safety net on every save: drop any embedded icon that is not a real image
 	// (e.g. an HTML page embedded from /favicon.ico) so bad data never reaches links.js;
@@ -1296,12 +1550,12 @@
 		try {
 			if(!fileHandle){
 				// first save: let the user pick links.js, then WRITE current state (no reload/overwrite)
-				if(!window.showOpenFilePicker){ alert("Tento prehliadač nepodporuje File System Access API. Použi Chrome/Edge/Brave."); return; }
+				if(!window.showOpenFilePicker){ alert(t("no_fsapi")); return; }
 				var [h] = await window.showOpenFilePicker({
 					types:[{description:"links.js", accept:{"text/javascript":[".js"]}}],
 					multiple:false
 				});
-				if((await h.requestPermission({ mode:"readwrite" }))!=="granted"){ alert("Bez povolenia na zápis sa nedá ukladať."); return; }
+				if((await h.requestPermission({ mode:"readwrite" }))!=="granted"){ alert(t("no_write")); return; }
 				fileHandle = h; await idbSet("linksHandle", h);
 			} else {
 				if((await fileHandle.queryPermission({mode:"readwrite"}))!=="granted"){
@@ -1311,13 +1565,13 @@
 			var w = await fileHandle.createWritable();
 			await w.write(serialize()); await w.close();
 			dirty = false;
-			updateStatus("Uložené "+new Date().toLocaleTimeString()
-				+ (cleaned ? (" · odstránené neplatné ikony (HTML/ne-obrázok): "+cleaned) : ""));
-		} catch(e){ if(e.name!=="AbortError") setHint("Chyba uloženia: "+e.message); }
+			updateStatus(t("saved_at", { time: new Date().toLocaleTimeString() })
+				+ (cleaned ? t("saved_cleaned", { n: cleaned }) : ""));
+		} catch(e){ if(e.name!=="AbortError") setHint(t("err_save", { msg: e.message })); }
 	}
 	async function reloadFromFile(){
-		if(!fileHandle){ setHint("Najprv Pripojiť súbor."); return; }
-		if(dirty && !confirm("Máš neuložené zmeny – načítaním zo súboru sa prepíšu. Pokračovať?")) return;
+		if(!fileHandle){ setHint(t("connect_first")); return; }
+		if(dirty && !confirm(t("reload_confirm"))) return;
 		try {
 			var f = await fileHandle.getFile();
 			var text = await f.text();
@@ -1325,13 +1579,13 @@
 			if(w.FAV){ state = clone(w.FAV); normalize(state); dirty = false; render();
 				// user chose the file as the source of truth → align the cache with it
 				try { localStorage.setItem("FAV_cache", JSON.stringify(state)); } catch(e){}
-				updateStatus("Načítané zo súboru "+new Date().toLocaleTimeString()); }
-		} catch(e){ setHint("Chyba načítania: "+e.message); }
+				updateStatus(t("loaded_at", { time: new Date().toLocaleTimeString() })); }
+		} catch(e){ setHint(t("err_load", { msg: e.message })); }
 	}
 	async function tryRestoreHandle(){
 		try {
 			var h = await idbGet("linksHandle");
-			if(h){ fileHandle = h; updateStatus("Súbor zapamätaný – klikni Načítať/Uložiť pre povolenie."); }
+			if(h){ fileHandle = h; updateStatus(t("handle_remembered")); }
 		} catch(e){}
 	}
 
@@ -1348,12 +1602,12 @@
 			var w = {}; (new Function("window", text))(w);
 			if(!w.FAV || stateTs(w.FAV) <= stateTs(state)) return;
 			if(dirty){
-				setHint("links.js medzitým zmenil iný počítač – máš aj lokálne neuložené zmeny. Ulož (prepíšeš súbor) alebo Načítaj (zahodíš lokálne).");
+				setHint(t("file_conflict"));
 				return;
 			}
 			state = clone(w.FAV); normalize(state); render();
 			try { localStorage.setItem("FAV_cache", JSON.stringify(state)); } catch(e){}
-			updateStatus("Načítaná novšia verzia zo súboru ("+new Date(stateTs(state)).toLocaleTimeString()+").");
+			updateStatus(t("newer_loaded", { time: new Date(stateTs(state)).toLocaleTimeString() }));
 		} catch(e){ /* background check must never bother the user */ }
 	}
 
@@ -1374,8 +1628,8 @@
 	function updateStatus(msg){
 		var dot = document.getElementById("connDot");
 		var btn = document.getElementById("connectBtn");
-		if(fileHandle){ dot.className="dot ok"; btn.title="Pripojené – ukladám automaticky"; }
-		else { dot.className="dot off"; btn.title="Pripojiť links.js pre ukladanie"; }
+		if(fileHandle){ dot.className="dot ok"; btn.title=t("connected_title"); }
+		else { dot.className="dot off"; btn.title=t("connect_title"); }
 		document.getElementById("saveBtn").classList.toggle("primary", dirty);
 		if(msg) setHint(msg);
 	}
@@ -1389,10 +1643,9 @@
 		eb.innerHTML = editing
 			? '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>'        // ✓ check
 			: '<svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>'; // pencil
-		eb.title = editing ? "Hotovo" : "Upraviť";
+		eb.title = editing ? t("done") : t("edit");
 		render();
-		setHint(editing ? "Režim úprav: ⠿ ťahaj skupinu kdekoľvek. Pravý dolný roh skupiny = zmena veľkosti. Ikonu ťahaj voľne kamkoľvek – v rámci skupiny na ľubovoľné miesto, do inej skupiny, alebo na voľnú plochu (= samostatná ikona). Prvky sa neprekrývajú. + v hlavičke skupiny pridá link, ✎ uprav, ✕ zmaž."
-		                : "");
+		setHint(editing ? t("edit_hint") : "");
 	}
 
 	// ---------- wire up ----------
@@ -1402,7 +1655,7 @@
 	document.getElementById("embedIcons").onclick = embedIcons;
 	document.getElementById("connectBtn").onclick = connect;
 	document.getElementById("saveBtn").onclick = saveToFile;
-	document.getElementById("reloadBtn").onclick = reloadFromFile;
+	document.getElementById("langBtn").onclick = function(){ setLang(lang === "sk" ? "en" : "sk"); };
 
 	// rotácia hover okraja dlaždice: rAF loop točí --spin len na dlaždici pod kurzorom
 	(function(){
@@ -1454,12 +1707,15 @@
 		if(e.key==="Escape"){ closeSearch(); searchEl.blur(); clearSelection(); }
 	});
 
+	applyI18n();
 	render();
 	tryRestoreHandle().then(checkFileForUpdates);
 	updateStatus();
-	if(dirty) setHint("Obnovené neuložené zmeny z tohto prehliadača – nezabudni Uložiť.");
+	if(dirty) setHint(t("restored_hint"));
 	window.addEventListener("focus", checkFileForUpdates);
 	setInterval(checkFileForUpdates, 60000);
+	pingAll();
+	setInterval(pingAll, PING_INTERVAL);
 })();
 </script>
 <script>

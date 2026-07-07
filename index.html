@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAVpage</title>
+<style>
+	:root {
+		--accent: #5b8cff;
+		--bg: #0f1115;
+		--bg2: #171a21;
+		--card: #1c2029;
+		--tile: #232834;
+		--tile-h: #2c3340;
+		--text: #e7eaf0;
+		--muted: #8a93a6;
+		--line: #2a2f3a;
+		--radius: 14px;
+	}
+	* { box-sizing: border-box; }
+	html, body { margin: 0; height: 100%; }
+	body {
+		background: radial-gradient(1200px 600px at 70% -10%, #1a2030 0%, var(--bg) 60%);
+		color: var(--text);
+		font: 15px/1.4 system-ui, "Segoe UI", Roboto, sans-serif;
+		-webkit-font-smoothing: antialiased;
+		display: flex; flex-direction: column; overflow: hidden;   /* viewport-sized layout, no page scrollbar */
+	}
+	/* hlavička bez pozadia: len plávajúce tlačidlá vpravo hore, board ide od vrchu */
+	header {
+		position: fixed; top: 0; right: 0; z-index: 30;
+		display: flex; align-items: center; gap: 14px;
+		padding: 16px 22px;
+	}
+	header .btn { opacity: .3; transition: opacity .15s; }
+	header .btn:hover, header .btn.on, header .btn.primary { opacity: 1; }
+	/* logo presunuté vpravo dole */
+	.brand {
+		position: fixed; right: 22px; bottom: 14px; z-index: 30;
+		font-weight: 700; font-size: 18px; letter-spacing: .3px;
+		pointer-events: none;
+	}
+	.brand b { color: var(--accent); }
+	/* vyhľadávanie: zbalené na 0, po kliknutí na lupu sa rozroluje */
+	#search {
+		width: 0; padding: 9px 0; border: 0 solid var(--line); opacity: 0;
+		background: var(--bg2); color: var(--text); border-radius: 10px;
+		font-size: 14px; outline: none;
+		transition: width .25s ease, opacity .2s, padding .25s ease;
+	}
+	body.search-open #search { width: min(260px, 40vw); padding: 9px 14px; border-width: 1px; opacity: 1; }
+	#search:focus { border-color: var(--accent); }
+	.spacer { flex: 1; }
+	.btn {
+		background: var(--bg2); color: var(--text); border: 1px solid var(--line);
+		padding: 8px 13px; border-radius: 10px; cursor: pointer; font-size: 13px; white-space: nowrap;
+	}
+	.btn:hover { background: var(--tile-h); }
+	.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+	.btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+	.btn.icon { display: inline-flex; align-items: center; justify-content: center; padding: 7px 9px; min-width: 38px; }
+	.btn.icon svg { width: 17px; height: 17px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+	.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+	.dot.ok { background: #46c46a; } .dot.off { background: #c9a13b; }
+
+	main {
+		position: relative;
+		flex: 1 1 auto;
+		padding: 16px 22px 40px;
+		overflow: auto;   /* only the board scrolls, and only when its content is taller than the viewport */
+	}
+	body.editing main {
+		background-image:
+			linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+		background-size: 20px 20px;
+	}
+	/* animované pozadie: sieť bodov pod celým obsahom, neblokuje ovládanie */
+	#bgnet { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+	.group {
+		position: absolute; width: 300px;
+		/* biela s nízkou alfou ≈ pôvodná --card (#1c2029), ale sieť za skupinou presvitá */
+		background: rgba(255,255,255,0.06);
+		border: 1px solid var(--line);
+		border-radius: var(--radius); padding: 14px 14px 16px;
+	}
+	.group.dragging-free { opacity: .85; box-shadow: 0 12px 30px rgba(0,0,0,.45); z-index: 50; }
+	.group.drag-over { outline: 2px dashed var(--accent); outline-offset: 2px; }
+	.group.resizing { outline: 2px dashed var(--accent); outline-offset: 2px; z-index: 50; }
+	.resize-handle {
+		display: none; position: absolute; right: 2px; bottom: 2px; width: 18px; height: 18px;
+		cursor: nwse-resize; touch-action: none; opacity: .55; z-index: 6;
+		background: linear-gradient(135deg, transparent 45%, var(--muted) 45%, var(--muted) 55%, transparent 55%, transparent 70%, var(--muted) 70%, var(--muted) 80%, transparent 80%);
+		border-radius: 0 0 var(--radius) 0;
+	}
+	body.editing .resize-handle { display: block; }
+	.resize-handle:hover { opacity: 1; }
+	.tile.floating, .tile.placed { position: absolute; width: 88px; z-index: 5; }
+	.tile.dragging-free { opacity: .85; box-shadow: 0 10px 24px rgba(0,0,0,.45); z-index: 60; }
+	main.board-drop { outline: 2px dashed var(--accent); outline-offset: -10px; border-radius: 14px; }
+	.drag-handle {
+		display: none; cursor: grab; color: var(--muted); font-size: 15px;
+		user-select: none; touch-action: none; padding: 0 2px;
+	}
+	body.editing .drag-handle { display: inline-block; }
+	.drag-handle:active { cursor: grabbing; }
+	.group-head { display: flex; align-items: center; gap: 8px; margin: 2px 4px 12px; }
+	.group-title { font-weight: 650; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; flex: 1; }
+	.group-title[contenteditable="true"] { color: var(--text); outline: 1px solid var(--accent); border-radius: 6px; padding: 2px 6px; }
+	/* free-positioning canvas: links are absolutely placed inside the group, independent of box size */
+	.tiles { position: relative; min-height: 40px; }
+	.tile {
+		position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
+		background: var(--tile); border: 1px solid var(--line); border-radius: 14px;
+		padding: 14px 8px 11px; color: var(--text); text-decoration: none; cursor: pointer;
+		text-align: center; transition: transform .06s, background .12s;
+	}
+	.tile:hover { background: var(--tile-h); transform: translateY(-1px); border-color: transparent; }
+	.tile.dragging { opacity: .4; }
+	/* hover: rotujúci gradientový okraj vo farbe ikony (--tc nastavuje tileEl,
+	   uhol --spin točí malý rAF loop počas hoveru – CSS animácia custom property
+	   na pseudo-elemente nie je v Chrome spoľahlivá) */
+	.tile::before {
+		content: ""; position: absolute; inset: -2px; border-radius: 15px; padding: 2px;
+		opacity: 0; pointer-events: none;
+		background: conic-gradient(from var(--spin, 0deg),
+			var(--tc, var(--accent)), transparent 30%,
+			var(--tc, var(--accent)) 50%, transparent 80%, var(--tc, var(--accent)));
+		-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+		-webkit-mask-composite: xor; mask-composite: exclude;
+	}
+	.tile:hover::before { opacity: 1; }
+	/* lasso výber viacerých liniek (režim úprav) */
+	.tile.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+	#lasso {
+		position: fixed; z-index: 45; display: none; pointer-events: none;
+		border: 1px dashed var(--accent); border-radius: 4px;
+		background: rgba(91,140,255,.10);
+	}
+	.icon-wrap { position: relative; }
+	.avatar {
+		width: 46px; height: 46px; border-radius: 11px; flex: 0 0 46px;
+		display: grid; place-items: center; font-weight: 700; font-size: 20px; color: #fff;
+		background: #2a3040; overflow: hidden;
+	}
+	.avatar-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+	.tile-label {
+		position: absolute; top: -8px; left: 50%; transform: translateX(-50%); z-index: 2;
+		background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; line-height: 1;
+		padding: 2px 7px; border-radius: 7px; box-shadow: 0 1px 4px rgba(0,0,0,.45);
+		pointer-events: none; max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	}
+	.tile-name { font-size: 10px; font-weight: 500; line-height: 1.2; max-width: 100%;
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.tile .mini { position: absolute; top: -7px; right: -7px; display: none; gap: 3px; }
+	body.editing .tile .mini { display: flex; }
+	body.editing .tile { cursor: grab; }
+	.mini button {
+		width: 20px; height: 20px; border-radius: 50%; border: none; cursor: pointer;
+		font-size: 11px; line-height: 20px; color: #fff; padding: 0;
+	}
+	.mini .edit { background: #3a6ad4; } .mini .del { background: #c0413b; }
+	.add-tile {
+		display: none; align-items: center; justify-content: center;
+		border: 1px dashed var(--line); border-radius: 12px; color: var(--muted);
+		padding: 10px; cursor: pointer; font-size: 13px;
+	}
+	body.editing .add-tile { display: flex; }
+	.add-tile:hover { border-color: var(--accent); color: var(--text); }
+	#addGroup, #addLink, #embedIcons { display: none; }
+	body.editing #addGroup, body.editing #addLink, body.editing #embedIcons { display: inline-flex; }
+	/* transient toast (fixed, no layout impact) – auto-hides; no permanent status bar */
+	.hint {
+		position: fixed; left: 22px; bottom: 16px; z-index: 40; max-width: min(70ch, 90vw);
+		margin: 0; color: var(--text); font-size: 12px; line-height: 1.4;
+		background: var(--bg2); border: 1px solid var(--line); border-radius: 10px;
+		padding: 9px 13px; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+		opacity: 0; transform: translateY(8px); transition: opacity .2s, transform .2s; pointer-events: none;
+	}
+	.hint.show { opacity: 1; transform: none; }
+	.hidden { display: none !important; }
+
+	/* modal */
+	.modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+		background: rgba(0,0,0,.55); backdrop-filter: blur(3px); }
+	.modal-card { width: min(460px, 92vw); max-height: 90vh; overflow: auto;
+		background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px 20px 18px;
+		box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+	.modal-card h3 { margin: 0 0 14px; font-size: 17px; }
+	.modal-card label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 5px; }
+	.modal-card input, .modal-card textarea {
+		width: 100%; background: var(--bg2); border: 1px solid var(--line); color: var(--text);
+		padding: 9px 11px; border-radius: 9px; font: inherit; font-size: 13px; outline: none; resize: vertical; }
+	.modal-card input:focus, .modal-card textarea:focus { border-color: var(--accent); }
+	.modal-card textarea { font-family: ui-monospace, monospace; font-size: 11px; }
+	.field-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+	.icon-preview { display: flex; align-items: center; gap: 10px; margin-top: 8px; min-height: 0; }
+	.icon-preview img { width: 40px; height: 40px; object-fit: contain; border-radius: 9px; background: #2a3040; }
+	.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+	.check-row { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; color: var(--text); font-size: 13px; cursor: pointer; }
+	.modal-card input[type="checkbox"] { width: auto; }
+	.modal-card input[type="color"] { width: 48px; height: 32px; padding: 2px; cursor: pointer; flex: 0 0 auto; }
+	.modal-card input[type="color"]:disabled { opacity: .4; cursor: default; }
+	.color-row { display: flex; gap: 16px; }
+	.color-col { flex: 1; min-width: 0; }
+	.color-pick { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+	.color-pick .check-row { margin: 0; font-size: 12px; color: var(--muted); }
+	.swatches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+	.swatch { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer;
+		padding: 0; transition: transform .08s; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+	.swatch:hover { transform: scale(1.12); border-color: var(--accent); }
+</style>
+</head>
+<body>
+<canvas id="bgnet"></canvas>
+<header>
+	<div class="brand">FAV<b>page</b></div>
+	<div class="spacer"></div>
+	<input id="search" type="search" placeholder="Hľadať…  (/ )" autocomplete="off">
+	<button class="btn icon" id="searchBtn" title="Hľadať (/)" aria-label="Hľadať">
+		<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+	<button class="btn icon" id="reloadBtn" title="Načítať zo súboru (Nextcloud sync)" aria-label="Načítať">
+		<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+	<button class="btn icon" id="connectBtn" title="Pripojiť links.js pre ukladanie" aria-label="Pripojiť"><span class="dot off" id="connDot"></span>
+		<svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+	<button class="btn icon" id="saveBtn" title="Uložiť do links.js" aria-label="Uložiť">
+		<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+	<button class="btn icon" id="addLink" title="Pridať link" aria-label="Pridať link">
+		<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+	<button class="btn icon" id="addGroup" title="Pridať skupinu" aria-label="Pridať skupinu">
+		<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>
+	<button class="btn icon" id="embedIcons" title="Stiahnuť a vložiť ikony do links.js (offline)" aria-label="Vložiť ikony">
+		<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+	<button class="btn icon" id="editBtn" title="Upraviť" aria-label="Upraviť">
+		<svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+</header>
+
+<main id="board"></main>
+<div id="lasso"></div>
+<p class="hint" id="hint"></p>
+
+<div class="modal hidden" id="modal">
+	<div class="modal-card">
+		<h3 id="modalTitle">Nový link</h3>
+		<label for="m-title">Názov</label>
+		<input id="m-title" type="text" autocomplete="off">
+		<label for="m-url">URL</label>
+		<input id="m-url" type="text" autocomplete="off" placeholder="https://… alebo http://10.10.1.x">
+		<label for="m-label">Label (voliteľné – malý štítok v rohu ikony)</label>
+		<input id="m-label" type="text" autocomplete="off" placeholder="napr. NAS, DEV…">
+		<label for="m-icon">Ikona (voliteľné)</label>
+		<textarea id="m-icon" rows="3" placeholder="názov z dashboard-icons (napr. grafana) · URL obrázka · alebo RAW data:image/png;base64,…"></textarea>
+		<div class="field-hint">Prázdne = automaticky (favicon → písmeno). Môžeš vložiť aj base64 dáta obrázka (data:image/…).</div>
+		<div class="icon-preview" id="m-preview"></div>
+		<div class="color-row">
+			<div class="color-col">
+				<label for="m-bg">Pozadie karty</label>
+				<div class="color-pick">
+					<input id="m-bg" type="color" value="#232834" disabled>
+					<label class="check-row"><input type="checkbox" id="m-bg-on"> vlastná</label>
+				</div>
+				<div class="swatches" id="m-bg-sw"></div>
+			</div>
+			<div class="color-col">
+				<label for="m-fg">Popis linky</label>
+				<div class="color-pick">
+					<input id="m-fg" type="color" value="#e7eaf0" disabled>
+					<label class="check-row"><input type="checkbox" id="m-fg-on"> vlastná</label>
+				</div>
+				<div class="swatches" id="m-fg-sw"></div>
+			</div>
+		</div>
+		<div class="modal-actions">
+			<button class="btn" id="m-cancel">Zrušiť</button>
+			<button class="btn primary" id="m-save">Uložiť</button>
+		</div>
+	</div>
+</div>
+
+<div class="modal hidden" id="groupModal">
+	<div class="modal-card">
+		<h3 id="groupModalTitle">Nová skupina</h3>
+		<label for="g-title">Názov</label>
+		<input id="g-title" type="text" autocomplete="off">
+		<label class="check-row"><input type="checkbox" id="g-color-on"> Vlastná farba nadpisu</label>
+		<input id="g-color" type="color" value="#5b8cff" disabled>
+		<div class="modal-actions">
+			<button class="btn" id="g-cancel">Zrušiť</button>
+			<button class="btn primary" id="g-save">Uložiť</button>
+		</div>
+	</div>
+</div>
+
+<script src="links.js"></script>
+<script>
+(function () {
+	"use strict";
+
+	// ---------- state ----------
+	var PAD = 20;   // minimálne odsadenie prvkov od okrajov plochy (≈ medzera medzi linkami)
+	var FALLBACK = { meta:{version:1,updatedAt:null,accent:"#5b8cff"}, groups:[], links:[] };
+	var state = clone(window.FAV || FALLBACK);
+	normalize(state);
+	var fileHandle = null;     // FileSystemFileHandle for links.js
+	var dirty = false;
+	var editing = false;
+
+	// content timestamp of a state (meta.updatedAt is bumped on every change and
+	// travels inside links.js, so it compares correctly across computers)
+	function stateTs(s){ return Date.parse((s && s.meta && s.meta.updatedAt) || "") || 0; }
+	// fast start: adopt the browser cache when it is NEWER than the file content
+	// (unsaved work from the last session on this computer); otherwise the file wins
+	try {
+		var _cached = JSON.parse(localStorage.getItem("FAV_cache") || "null");
+		if(_cached && stateTs(_cached) > stateTs(state)){
+			state = clone(_cached); normalize(state); dirty = true;
+		}
+	} catch(e){}
+
+	var board = document.getElementById("board");
+	var hint = document.getElementById("hint");
+	var searchEl = document.getElementById("search");
+	var selected = new Set();   // id-čka liniek označených lasom
+
+	if (state.meta && state.meta.accent) document.documentElement.style.setProperty("--accent", state.meta.accent);
+
+	// ---------- helpers ----------
+	function clone(o){ return JSON.parse(JSON.stringify(o)); }
+	function uid(p){ return (p||"x") + "-" + Math.random().toString(36).slice(2,8); }
+	var GRID = 20;
+	// tile geometry used for placement / collision (px)
+	var TILE_W = 88, TILE_H = 104, TILE_DX = 100, TILE_DY = 120;
+	function snap(v){ return Math.round(v / GRID) * GRID; }
+	function normalize(s){
+		s.groups = s.groups || []; s.links = s.links || []; s.meta = s.meta || {};
+		s.groups.forEach(function(g,i){
+			if(g.order==null) g.order=i;
+			if(g.x==null) g.x = 20 + (i % 4) * 320;     // default spread, user rearranges
+			if(g.y==null) g.y = 20 + Math.floor(i / 4) * 360;
+			if(g.w==null) g.w = 320;                    // resizable box width
+			// g.h is optional: undefined = auto-height to content
+			g.x = Math.max(PAD, g.x); g.y = Math.max(PAD, g.y);   // odsadenie od okrajov
+		});
+		s.links.forEach(function(l,i){
+			if(l.order==null) l.order=i;
+			if(l.groupId === undefined) l.groupId = null;
+			// floating link (no group) needs a board position
+			if(l.groupId==null){
+				if(l.x==null) l.x = 20 + (i % 6) * 160;
+				if(l.y==null) l.y = 20;
+				l.x = Math.max(PAD, l.x); l.y = Math.max(PAD, l.y);   // odsadenie od okrajov
+			}
+		});
+		// grouped links: give any without coords a default grid position inside their group
+		s.groups.forEach(function(g){
+			s.links.filter(function(l){return l.groupId===g.id;})
+				.sort(function(a,b){return a.order-b.order;})
+				.forEach(function(l,i){
+					if(l.x==null) l.x = (i % 3) * TILE_DX;
+					if(l.y==null) l.y = Math.floor(i / 3) * TILE_DY;
+				});
+		});
+	}
+	function groupsSorted(){ return state.groups.slice().sort(function(a,b){return a.order-b.order;}); }
+	function linksOf(gid){ return state.links.filter(function(l){return l.groupId===gid;}).sort(function(a,b){return a.order-b.order;}); }
+	function hashColor(str){
+		var h=0; for(var i=0;i<str.length;i++){ h=str.charCodeAt(i)+((h<<5)-h); }
+		return "hsl(" + (Math.abs(h)%360) + ",55%,45%)";
+	}
+	var hintTimer = null;
+	function setHint(t){
+		clearTimeout(hintTimer);
+		if(t){
+			hint.textContent = t;
+			hint.classList.add("show");
+			hintTimer = setTimeout(function(){ hint.classList.remove("show"); }, 5000);
+		} else {
+			hint.classList.remove("show");
+		}
+	}
+	function slugify(s){ return (s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,""); }
+	function diSvg(n){ return "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/"+n+".svg"; }
+	function diPng(n){ return "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/"+n+".png"; }
+	// clean a pasted icon value: strip /* */ or // comment wrappers, and whitespace inside data: URIs
+	function cleanIcon(v){
+		v = String(v || "").trim();
+		v = v.replace(/^\/\*+/, "").replace(/\*+\/$/, "").trim();   // /* ... */ block comment
+		v = v.replace(/^\/\/+\s*/, "").trim();                      // // line comment
+		if (/data:/i.test(v)){                                      // extract data: URI, drop all whitespace
+			v = v.slice(v.search(/data:/i)).replace(/\s+/g, "");
+		}
+		return v;
+	}
+	// icon candidates: override -> dashboard-icons by name -> app favicon -> (letter fallback handled in tileEl)
+	function iconCandidates(l){
+		var c = [];
+		var icon = cleanIcon(l.icon);
+		if (icon){
+			var v = icon;
+			if (/^(https?:|data:|\/)/i.test(v) || /\.(png|svg|ico|jpg|jpeg|webp|gif)$/i.test(v)) c.push(v); // explicit URL/file
+			else { c.push(diSvg(v)); c.push(diPng(v)); }                                                    // dashboard-icons name
+		} else {
+			var slug = slugify(l.title);
+			if (slug) c.push(diSvg(slug));                                                                  // best-effort Homarr look
+		}
+		try { c.push(new URL(l.url).origin + "/favicon.ico"); } catch(e){}                                  // app favicon
+		return c;
+	}
+
+	function floatingLinks(){ return state.links.filter(function(l){return l.groupId==null;}).sort(function(a,b){return a.order-b.order;}); }
+	function matches(l, q){ return !q || l.title.toLowerCase().indexOf(q)>=0 || (l.url||"").toLowerCase().indexOf(q)>=0; }
+
+	// ---------- render ----------
+	function render(){
+		var q = searchEl.value.trim().toLowerCase();
+		board.innerHTML = "";
+		groupsSorted().forEach(function(g){
+			var links = linksOf(g.id).filter(function(l){ return matches(l, q); });
+			if (q && links.length===0) return;
+
+			var sec = document.createElement("section");
+			sec.className = "group"; sec.dataset.gid = g.id;
+			sec.style.left = g.x + "px"; sec.style.top = g.y + "px";
+			sec.style.width = (g.w || 300) + "px";
+			if (g.h) sec.style.minHeight = g.h + "px";
+
+			var head = document.createElement("div"); head.className = "group-head";
+			var handle = document.createElement("span"); handle.className = "drag-handle"; handle.textContent = "⠿"; handle.title = "Ťahaj pre presun skupiny";
+			head.appendChild(handle);
+			var title = document.createElement("div"); title.className = "group-title";
+			title.textContent = g.title;
+			if (g.color) title.style.color = g.color;
+			head.appendChild(title);
+			if (editing){
+				var addG = document.createElement("button"); addG.className="btn"; addG.textContent="+";
+				addG.style.padding="2px 8px"; addG.title="Pridať link do skupiny";
+				addG.onclick = function(){ addLink(g.id); };
+				var edG = document.createElement("button"); edG.className="btn"; edG.textContent="✎";
+				edG.style.padding="2px 8px"; edG.title="Upraviť skupinu";
+				edG.onclick = function(){ editGroup(g); };
+				var delG = document.createElement("button"); delG.className="btn"; delG.textContent="✕";
+				delG.style.padding="2px 8px"; delG.title="Zmazať skupinu";
+				delG.onclick = function(){ removeGroup(g.id); };
+				head.appendChild(addG); head.appendChild(edG); head.appendChild(delG);
+				enableFreeDrag(sec, handle, g);
+				var rh = document.createElement("div"); rh.className = "resize-handle";
+				rh.title = "Ťahaj pre zmenu veľkosti skupiny";
+				enableResize(sec, rh, g);
+				sec.appendChild(rh);
+			}
+			sec.appendChild(head);
+
+			// free-positioning canvas: each link is absolutely placed at (l.x, l.y) inside it
+			var tiles = document.createElement("div"); tiles.className = "tiles";
+			links.forEach(function(l){
+				var t = tileEl(l); t.classList.add("placed");
+				t.style.left = (l.x||0) + "px"; t.style.top = (l.y||0) + "px";
+				if (editing) enableTileDrag(t, l);
+				tiles.appendChild(t);
+			});
+			sec.appendChild(tiles);
+			board.appendChild(sec);
+		});
+
+		// floating links (no group)
+		floatingLinks().forEach(function(l){
+			if (!matches(l, q)) return;
+			var t = tileEl(l); t.classList.add("floating");
+			t.style.left = l.x + "px"; t.style.top = l.y + "px";
+			if (editing) enableTileDrag(t, l);
+			board.appendChild(t);
+		});
+
+		sizeGroupCanvases();
+		updateBoardHeight();
+	}
+
+	// size each group's canvas so it contains its tiles and fills any extra resized height/width
+	function sizeGroupCanvases(){
+		[].forEach.call(board.querySelectorAll(".group"), function(sec){
+			var g = state.groups.find(function(x){return x.id===sec.dataset.gid;});
+			if(!g) return;
+			var tiles = sec.querySelector(".tiles");
+			var ls = linksOf(g.id);
+			var contentBottom = 0, contentRight = 0;
+			ls.forEach(function(l){
+				contentBottom = Math.max(contentBottom, (l.y||0) + TILE_H);
+				contentRight  = Math.max(contentRight,  (l.x||0) + TILE_W);
+			});
+			var bottomPad = 16, sidePad = 14;
+			var headBottom = tiles.offsetTop;   // distance from group top to canvas (incl. head)
+			var desiredH = Math.max(contentBottom + 10, g.h ? (g.h - headBottom - bottomPad) : 0);
+			tiles.style.height = desiredH + "px";
+			// widen group if a tile sticks out past the current width
+			var needW = contentRight + sidePad * 2;
+			sec.style.width = Math.max(g.w || 320, needW) + "px";
+		});
+	}
+
+	function updateBoardHeight(){
+		// no forced height: the board fills the viewport (flex) and only scrolls when a
+		// group/tile actually extends past the bottom, so short pages have no scrollbar
+		board.style.minHeight = "";
+	}
+
+	var tileColors = {};   // id → { src, color }: dominantná farba ikony pre hover okraj
+	function tileEl(l){
+		var a = document.createElement("a");
+		a.className = "tile";
+		a.draggable = false;   // we use pointer-based dragging, not native HTML5 drag
+		a.href = l.url; a.target = "_blank"; a.rel = "noopener";
+		a.dataset.id = l.id;
+		if (l.bg){ a.style.background = l.bg; a.style.borderColor = l.bg; }
+		// farba rotujúceho hover okraja: dominantná farba ikony (doplní sa po načítaní),
+		// dovtedy vlastné pozadie karty alebo hash farba názvu
+		a.style.setProperty("--tc", l.bg || hashColor(l.title));
+		if(selected.has(l.id)) a.classList.add("selected");   // lasso výber prežije re-render
+
+		var av = document.createElement("div"); av.className="avatar";
+		function letter(){
+			av.textContent = (l.title||"?").trim().charAt(0).toUpperCase();
+			av.style.background = hashColor(l.title);
+		}
+		var cands = iconCandidates(l);
+		if (cands.length){
+			var img = document.createElement("img"); img.className="avatar-img"; img.alt=""; img.loading="lazy"; img.draggable=false;
+			var i = 0;
+			img.onerror = function(){
+				i++;
+				if (i < cands.length){ img.src = cands[i]; }
+				else { if (img.parentNode) av.removeChild(img); letter(); }
+			};
+			// po načítaní ikony vytiahni jej dominantnú farbu pre hover okraj
+			// (CORS-safe pokus cez druhý Image; pri zlyhaní ostáva fallback farba)
+			img.onload = function(){
+				var cached = tileColors[l.id];
+				if(cached && cached.src === img.src){
+					if(cached.color) a.style.setProperty("--tc", cached.color);
+					return;
+				}
+				var im = new Image(); im.crossOrigin = "anonymous";
+				im.onload = function(){
+					var p = getPalette(im);
+					tileColors[l.id] = { src: img.src, color: p[0] || null };
+					if(p[0]) a.style.setProperty("--tc", p[0]);
+				};
+				im.onerror = function(){ tileColors[l.id] = { src: img.src, color: null }; };
+				im.src = img.src;
+			};
+			img.src = cands[0];
+			av.appendChild(img);
+		} else { letter(); }
+
+		var iconWrap = document.createElement("div"); iconWrap.className = "icon-wrap";
+		iconWrap.appendChild(av);
+		a.appendChild(iconWrap);
+
+		var nm = document.createElement("div"); nm.className="tile-name"; nm.textContent = l.title;
+		if (l.fg) nm.style.color = l.fg;
+		a.appendChild(nm);
+
+		// label badge sits on the card edge (Homarr-style), not on the icon
+		if (l.label){
+			var lb = document.createElement("div"); lb.className = "tile-label"; lb.textContent = l.label;
+			a.appendChild(lb);
+		}
+
+		var mini = document.createElement("div"); mini.className="mini";
+		var ed = document.createElement("button"); ed.className="edit"; ed.textContent="✎"; ed.title="Upraviť";
+		ed.onclick = function(e){ e.preventDefault(); e.stopPropagation(); editLink(l); };
+		var dl = document.createElement("button"); dl.className="del"; dl.textContent="✕"; dl.title="Zmazať";
+		dl.onclick = function(e){ e.preventDefault(); e.stopPropagation(); removeLink(l.id); };
+		mini.appendChild(ed); mini.appendChild(dl);
+		a.appendChild(mini);
+
+		// block navigation while editing (so drag works, click doesn't open)
+		a.addEventListener("click", function(e){ if(editing){ e.preventDefault(); } });
+		return a;
+	}
+
+	// ---------- free positioning of GROUPS (pointer drag + snap, no overlap) ----------
+	function enableFreeDrag(el, handle, obj){
+		handle.addEventListener("pointerdown", function(e){
+			if(!editing || e.button!==0) return;
+			e.preventDefault(); e.stopPropagation();
+			var startX = e.clientX, startY = e.clientY;
+			var origX = obj.x, origY = obj.y, moved = false;
+			el.classList.add("dragging-free");
+			function move(ev){
+				var dx = ev.clientX - startX, dy = ev.clientY - startY;
+				if(Math.abs(dx)>3 || Math.abs(dy)>3) moved = true;
+				var nx = Math.max(PAD, Math.min(origX + dx, board.clientWidth - el.offsetWidth - 4));
+				var ny = Math.max(PAD, origY + dy);
+				el.style.left = snap(nx) + "px";
+				el.style.top  = snap(ny) + "px";
+			}
+			function up(ev){
+				document.removeEventListener("pointermove", move);
+				document.removeEventListener("pointerup", up);
+				el.classList.remove("dragging-free");
+				if(!moved) return;
+				// keep the group where it was dropped; push any overlapping board elements down to make room
+				obj.x = parseInt(el.style.left,10)||0;
+				obj.y = parseInt(el.style.top,10)||0;
+				relayoutBoard(obj.id);
+				markDirty(); render();
+			}
+			document.addEventListener("pointermove", move);
+			document.addEventListener("pointerup", up);
+		});
+	}
+
+	// ---------- free positioning of TILES (inside a group, between groups, or on the board) ----------
+	// rects of a link's siblings inside group gid (for in-group collision), in canvas coords
+	function groupSiblingRects(gid, exceptId){
+		return state.links.filter(function(l){ return l.groupId===gid && l.id!==exceptId; })
+			.map(function(l){ var s = tileSize(l.id); return { x:l.x||0, y:l.y||0, w:s.w, h:s.h }; });
+	}
+	function enableTileDrag(el, link){
+		el.addEventListener("pointerdown", function(e){
+			if(!editing || e.button!==0) return;
+			if(e.target.closest && e.target.closest(".mini")) return;  // let edit/delete buttons work
+			e.preventDefault(); e.stopPropagation();
+			// ťah za označenú linku hýbe celým výberom; klik na neoznačenú výber zruší
+			if(selected.has(link.id) && selected.size > 1){ startMultiDrag(e); return; }
+			if(selected.size && !selected.has(link.id)) clearSelection();
+			var startX = e.clientX, startY = e.clientY;
+			var origX = link.x||0, origY = link.y||0, moved = false;
+			el.classList.add("dragging-free");
+			function move(ev){
+				var dx = ev.clientX - startX, dy = ev.clientY - startY;
+				if(Math.abs(dx)>3 || Math.abs(dy)>3) moved = true;
+				el.style.left = snap(origX + dx) + "px";
+				el.style.top  = snap(origY + dy) + "px";
+			}
+			function up(ev){
+				document.removeEventListener("pointermove", move);
+				document.removeEventListener("pointerup", up);
+				el.classList.remove("dragging-free");
+				if(!moved) return;
+				// remember the source group and its size — it may shrink by this move
+				var srcGid = link.groupId;
+				var srcSec = srcGid ? board.querySelector('.group[data-gid="'+srcGid+'"]') : null;
+				var srcH = srcSec ? srcSec.offsetHeight : 0;
+				// the tile must STAY where the drag preview showed it — derive the drop
+				// position from the element's rect, not from the cursor (grabbing a tile
+				// off-centre would otherwise teleport it by up to half a tile on release)
+				var tr = el.getBoundingClientRect();
+				var grp = groupUnderPoint(ev.clientX, ev.clientY, el);
+				if(grp){
+					// dropped inside a group; push overlapping siblings down to make room
+					var canvas = board.querySelector('.group[data-gid="'+grp.id+'"] .tiles');
+					var rect = canvas.getBoundingClientRect();
+					link.groupId = grp.id;
+					link.x = snap(Math.max(0, tr.left - rect.left));
+					link.y = snap(Math.max(0, tr.top  - rect.top));
+					relayoutGroup(grp.id, link.id);
+				} else {
+					// dropped on empty board → free-floating; push overlapping board elements down
+					// (abs. children sit on the board's padding edge, so no padding offset here)
+					var br = board.getBoundingClientRect();
+					link.groupId = null;
+					link.x = snap(Math.max(PAD, tr.left - br.left + board.scrollLeft));
+					link.y = snap(Math.max(PAD, tr.top  - br.top  + board.scrollTop));
+					relayoutBoard(link.id);
+				}
+				markDirty(); render();
+				// target group may have grown a row/column → push elements below it away
+				if(grp && relayoutBoard(grp.id)){ markDirty(); render(); }
+				// source group may have shrunk → pull elements below it back up
+				if(srcGid){
+					var s2 = board.querySelector('.group[data-gid="'+srcGid+'"]');
+					if(s2 && pullUpBelow(srcGid, srcH - s2.offsetHeight)){ markDirty(); render(); }
+				}
+			}
+			document.addEventListener("pointermove", move);
+			document.addEventListener("pointerup", up);
+		});
+	}
+	// ---------- multi-drag: presun celého lasso výberu naraz ----------
+	function startMultiDrag(e){
+		var startX = e.clientX, startY = e.clientY, moved = false;
+		var parts = [];
+		selected.forEach(function(id){
+			var t = board.querySelector('.tile[data-id="'+id+'"]');
+			var l = state.links.find(function(x){return x.id===id;});
+			if(t && l) parts.push({ el:t, link:l, rect:t.getBoundingClientRect() });
+		});
+		if(!parts.length) return;
+		parts.forEach(function(p){ p.el.classList.add("dragging-free"); });
+		function delta(ev){ return { dx: snap(ev.clientX - startX), dy: snap(ev.clientY - startY) }; }
+		function move(ev){
+			if(Math.abs(ev.clientX-startX)>3 || Math.abs(ev.clientY-startY)>3) moved = true;
+			var d = delta(ev);
+			parts.forEach(function(p){ p.el.style.transform = "translate("+d.dx+"px,"+d.dy+"px)"; });
+		}
+		function up(ev){
+			document.removeEventListener("pointermove", move);
+			document.removeEventListener("pointerup", up);
+			parts.forEach(function(p){ p.el.classList.remove("dragging-free"); p.el.style.transform = ""; });
+			if(!moved) return;
+			var ids = parts.map(function(p){ return p.link.id; });
+			// zdrojové skupiny si zapamätaj pred presunom (môžu sa zmenšiť)
+			var srcHeights = {};
+			parts.forEach(function(p){
+				if(p.link.groupId && !(p.link.groupId in srcHeights)){
+					var s = board.querySelector('.group[data-gid="'+p.link.groupId+'"]');
+					srcHeights[p.link.groupId] = s ? s.offsetHeight : 0;
+				}
+			});
+			var d = delta(ev);
+			var grp = groupUnderPoint(ev.clientX, ev.clientY, parts.map(function(p){ return p.el; }));
+			if(grp){
+				var canvas = board.querySelector('.group[data-gid="'+grp.id+'"] .tiles');
+				var cr = canvas.getBoundingClientRect();
+				parts.forEach(function(p){
+					p.link.groupId = grp.id;
+					p.link.x = snap(Math.max(0, p.rect.left + d.dx - cr.left));
+					p.link.y = snap(Math.max(0, p.rect.top  + d.dy - cr.top));
+				});
+				relayoutGroup(grp.id, ids);
+			} else {
+				var br = board.getBoundingClientRect();
+				parts.forEach(function(p){
+					p.link.groupId = null;
+					p.link.x = snap(Math.max(PAD, p.rect.left + d.dx - br.left + board.scrollLeft));
+					p.link.y = snap(Math.max(PAD, p.rect.top  + d.dy - br.top  + board.scrollTop));
+				});
+				relayoutBoard(ids);
+			}
+			markDirty(); render();
+			// cieľová skupina mohla narásť → odsuň prvky pod ňou
+			if(grp && relayoutBoard(grp.id)){ markDirty(); render(); }
+			// zdrojové skupiny sa mohli zmenšiť → prisuň prvky pod nimi
+			Object.keys(srcHeights).forEach(function(gid){
+				if(grp && gid === grp.id) return;
+				var s2 = board.querySelector('.group[data-gid="'+gid+'"]');
+				if(s2 && pullUpBelow(gid, srcHeights[gid] - s2.offsetHeight)){ markDirty(); render(); }
+			});
+		}
+		document.addEventListener("pointermove", move);
+		document.addEventListener("pointerup", up);
+	}
+
+	// ---------- lasso: ťahaním po prázdnej ploche označ viac liniek naraz ----------
+	function clearSelection(){
+		if(!selected.size) return;
+		selected.clear();
+		[].forEach.call(board.querySelectorAll(".tile.selected"), function(t){ t.classList.remove("selected"); });
+	}
+	board.addEventListener("pointerdown", function(e){
+		if(!editing || e.button!==0) return;
+		// lasso štartuje len z prázdnej plochy/pozadia skupiny (dlaždice a úchyty si event stopnú)
+		if(e.target.closest && (e.target.closest(".tile") || e.target.closest("button") || e.target.closest(".group-head"))) return;
+		e.preventDefault();
+		var sx = e.clientX, sy = e.clientY, moved = false;
+		var lasso = document.getElementById("lasso");
+		function apply(r){
+			[].forEach.call(board.querySelectorAll(".tile"), function(t){
+				var tr = t.getBoundingClientRect();
+				var hit = !(tr.right < r.left || r.right < tr.left || tr.bottom < r.top || r.bottom < tr.top);
+				var id = t.dataset.id;
+				if(hit) selected.add(id); else selected.delete(id);
+				t.classList.toggle("selected", hit);
+			});
+		}
+		function move(ev){
+			var r = { left: Math.min(sx, ev.clientX), top: Math.min(sy, ev.clientY),
+			          right: Math.max(sx, ev.clientX), bottom: Math.max(sy, ev.clientY) };
+			if(r.right-r.left > 4 || r.bottom-r.top > 4) moved = true;
+			lasso.style.display = "block";
+			lasso.style.left = r.left+"px"; lasso.style.top = r.top+"px";
+			lasso.style.width = (r.right-r.left)+"px"; lasso.style.height = (r.bottom-r.top)+"px";
+			apply(r);
+		}
+		function up(){
+			document.removeEventListener("pointermove", move);
+			document.removeEventListener("pointerup", up);
+			lasso.style.display = "none";
+			if(!moved) clearSelection();   // obyčajný klik do plochy výber zruší
+			else if(selected.size) setHint("Označené linky: " + selected.size + " – ťahaj ktorúkoľvek z nich, presunie sa celý výber.");
+		}
+		document.addEventListener("pointermove", move);
+		document.addEventListener("pointerup", up);
+	});
+
+	// ---------- resize groups (width + height, snap) — does NOT affect icon layout ----------
+	function enableResize(el, handle, obj){
+		handle.addEventListener("pointerdown", function(e){
+			if(!editing || e.button!==0) return;
+			e.preventDefault(); e.stopPropagation();
+			var startX = e.clientX, startY = e.clientY;
+			var origW = obj.w || el.offsetWidth, origH = obj.h || el.offsetHeight;
+			var others = occupiedRects(el);
+			el.classList.add("resizing");
+			function move(ev){
+				var nw = Math.max(120, origW + (ev.clientX - startX));
+				var nh = Math.max(80,  origH + (ev.clientY - startY));
+				// don't let the box grow into a neighbouring element
+				var c = clampSize(obj.x, obj.y, nw, nh, others);
+				el.style.width = snap(c.w) + "px";
+				el.style.minHeight = snap(c.h) + "px";
+			}
+			function up(){
+				document.removeEventListener("pointermove", move);
+				document.removeEventListener("pointerup", up);
+				el.classList.remove("resizing");
+				obj.w = parseInt(el.style.width,10) || origW;
+				obj.h = parseInt(el.style.minHeight,10) || origH;
+				markDirty(); render();   // re-render so the inner canvas fills the new size
+			}
+			document.addEventListener("pointermove", move);
+			document.addEventListener("pointerup", up);
+		});
+	}
+	function groupUnderPoint(x, y, ignore){
+		var ig = Array.isArray(ignore) ? ignore : (ignore ? [ignore] : []);
+		var els = document.elementsFromPoint(x, y);
+		for(var i=0;i<els.length;i++){
+			var skip = false;
+			for(var k=0;k<ig.length;k++){
+				if(els[i]===ig[k] || ig[k].contains(els[i])){ skip = true; break; }  // skip dragged tiles + children
+			}
+			if(skip) continue;
+			var s = els[i].closest && els[i].closest(".group");
+			if(s){ return state.groups.find(function(g){return g.id===s.dataset.gid;}); }
+		}
+		return null;
+	}
+
+	// ---------- collision avoidance for free-positioned elements (groups + floating tiles) ----------
+	var GAP = 20;   // odstup pri "sprav miesto" = jeden krok mriežky
+	// rectangles of every free-positioned element currently on the board, except `exceptEl`
+	function occupiedRects(exceptEl){
+		var rects = [];
+		[].forEach.call(board.children, function(c){
+			if(c===exceptEl) return;
+			if(!c.classList.contains("group") && !c.classList.contains("floating")) return;
+			rects.push({ x:c.offsetLeft, y:c.offsetTop, w:c.offsetWidth, h:c.offsetHeight });
+		});
+		return rects;
+	}
+	function rectsOverlap(a, b, gap){
+		gap = gap || 0;
+		return !(a.x + a.w + gap <= b.x || b.x + b.w + gap <= a.x ||
+		         a.y + a.h + gap <= b.y || b.y + b.h + gap <= a.y);
+	}
+	function hitsAny(t, rects){
+		for(var i=0;i<rects.length;i++){ if(rectsOverlap(t, rects[i], GAP)) return true; }
+		return false;
+	}
+	// nearest snapped position to (x,y) where a w×h box doesn't overlap anything in rects
+	function findFreeSpot(x, y, w, h, rects){
+		x = Math.max(0, snap(x)); y = Math.max(0, snap(y));
+		if(!hitsAny({x:x,y:y,w:w,h:h}, rects)) return { x:x, y:y };
+		for(var r=GRID; r<=6000; r+=GRID){
+			var cands = [
+				{x:x,   y:y+r}, {x:x+r, y:y}, {x:x-r, y:y}, {x:x,   y:y-r},
+				{x:x+r, y:y+r}, {x:x-r, y:y+r}, {x:x+r, y:y-r}, {x:x-r, y:y-r}
+			];
+			for(var i=0;i<cands.length;i++){
+				var cx = Math.max(0, cands[i].x), cy = Math.max(0, cands[i].y);
+				if(!hitsAny({x:cx, y:cy, w:w, h:h}, rects)) return { x:cx, y:cy };
+			}
+		}
+		return { x:x, y:y };
+	}
+	// cap a resize so the w×h box at (x,y) doesn't grow into other elements
+	function clampSize(x, y, w, h, rects){
+		rects.forEach(function(rc){
+			var vOverlap = (y < rc.y + rc.h) && (rc.y < y + h);
+			if(vOverlap && rc.x >= x) w = Math.min(w, rc.x - GAP - x);
+			var hOverlap = (x < rc.x + rc.w) && (rc.x < x + w);
+			if(hOverlap && rc.y >= y) h = Math.min(h, rc.y - GAP - y);
+		});
+		return { w: Math.max(120, w), h: Math.max(80, h) };
+	}
+
+	// ---------- "make room": dropped item stays put, overlapping items are pushed DOWN ----------
+	// items: [{x,y,w,h}], fixed (index alebo pole indexov) drží miesto; others shift down.
+	// Horizontal positions are preserved; y only ever increases → always terminates.
+	// Only a REAL overlap (gap 0) triggers a push, so items may sit arbitrarily close;
+	// GAP is just the clearance applied once a push is actually needed.
+	function packDown(items, fixed){
+		var fixedArr = Array.isArray(fixed) ? fixed : [fixed];
+		var placed = fixedArr.map(function(i){ return items[i]; });
+		var order = [];
+		for(var i=0;i<items.length;i++){ if(fixedArr.indexOf(i)<0) order.push(i); }
+		order.sort(function(a,b){ return (items[a].y-items[b].y) || (items[a].x-items[b].x); });
+		order.forEach(function(i){
+			var r = items[i], guard = 0;
+			for(;;){
+				var pushedTo = null;
+				for(var k=0;k<placed.length;k++){
+					if(rectsOverlap(r, placed[k], 0)){
+						var ny = placed[k].y + placed[k].h + GAP;
+						if(ny > (pushedTo==null ? r.y : pushedTo)) pushedTo = ny;
+					}
+				}
+				if(pushedTo==null || guard++>500) break;
+				r.y = pushedTo;
+			}
+			placed.push(r);
+		});
+	}
+	// measured size of a link's tile in the DOM (collision box = what the user actually sees);
+	// falls back to the TILE_* constants before the first render
+	function tileSize(id){
+		var el = board.querySelector('.tile[data-id="'+id+'"]');
+		return { w: (el ? el.offsetWidth : TILE_W), h: (el ? el.offsetHeight : TILE_H) };
+	}
+	// board level (groups + floating tiles share board coords); fixedIds je id alebo pole id
+	// práve pustených/zväčšených prvkov; returns true if anything had to move
+	function relayoutBoard(fixedIds){
+		var ids = Array.isArray(fixedIds) ? fixedIds : [fixedIds];
+		var items = [];
+		state.groups.forEach(function(g){
+			var sec = board.querySelector('.group[data-gid="'+g.id+'"]');
+			items.push({ x:g.x, y:g.y, w:(sec?sec.offsetWidth:(g.w||320)), h:(sec?sec.offsetHeight:(g.h||120)), ref:g });
+		});
+		floatingLinks().forEach(function(l){ var s = tileSize(l.id); items.push({ x:l.x, y:l.y, w:s.w, h:s.h, ref:l }); });
+		var fixed = [];
+		items.forEach(function(it, idx){ if(ids.indexOf(it.ref.id)>=0) fixed.push(idx); });
+		if(!fixed.length) return false;
+		packDown(items, fixed);
+		var changed = false;
+		items.forEach(function(it){
+			if(it.ref.x!==it.x || it.ref.y!==it.y){ changed = true; it.ref.x = it.x; it.ref.y = it.y; }
+		});
+		return changed;
+	}
+	// opposite of the grow-push: when group gid got SMALLER by `delta`, board elements
+	// below it (in its x-range) move back up by the same amount, keeping their own
+	// spacing; anything that would collide with an unmoved element is nudged down again
+	function pullUpBelow(gid, delta){
+		if(!(delta > 0)) return false;
+		var sec = board.querySelector('.group[data-gid="'+gid+'"]');
+		var g = state.groups.find(function(x){return x.id===gid;});
+		if(!sec || !g) return false;
+		var newBottom = g.y + sec.offsetHeight;
+		var items = [];
+		state.groups.forEach(function(og){
+			var s2 = board.querySelector('.group[data-gid="'+og.id+'"]');
+			items.push({ x:og.x, y:og.y, w:(s2?s2.offsetWidth:(og.w||320)), h:(s2?s2.offsetHeight:(og.h||120)), ref:og });
+		});
+		floatingLinks().forEach(function(l){ var s = tileSize(l.id); items.push({ x:l.x, y:l.y, w:s.w, h:s.h, ref:l }); });
+		var gIt = items.find(function(it){ return it.ref.id===gid; });
+		var movers = items.filter(function(it){
+			return it!==gIt && it.y >= newBottom && it.x < gIt.x + gIt.w && gIt.x < it.x + it.w;
+		});
+		if(!movers.length) return false;
+		var placed = items.filter(function(it){ return movers.indexOf(it)<0; })
+			.map(function(it){ return { x:it.x, y:it.y, w:it.w, h:it.h }; });
+		var changed = false;
+		movers.sort(function(a,b){ return a.y-b.y; });
+		movers.forEach(function(m){
+			var r = { x:m.x, y:Math.max(m.y - delta, newBottom + GAP), w:m.w, h:m.h };
+			var guard = 0;
+			for(;;){
+				var hit = null;
+				for(var k=0;k<placed.length;k++){ if(rectsOverlap(r, placed[k], 0)){ hit = placed[k]; break; } }
+				if(!hit || guard++>500) break;
+				r.y = hit.y + hit.h + GAP;
+			}
+			if(r.y !== m.ref.y) changed = true;
+			m.ref.y = r.y;
+			placed.push(r);
+		});
+		return changed;
+	}
+	// inside one group (tiles share the group-canvas coords); fixedIds je id alebo pole id
+	function relayoutGroup(gid, fixedIds){
+		var ids = Array.isArray(fixedIds) ? fixedIds : [fixedIds];
+		var items = linksOf(gid).map(function(l){ var s = tileSize(l.id); return { x:l.x||0, y:l.y||0, w:s.w, h:s.h, ref:l }; });
+		var fixed = [];
+		items.forEach(function(it, idx){ if(ids.indexOf(it.ref.id)>=0) fixed.push(idx); });
+		if(!fixed.length) return;
+		packDown(items, fixed);
+		items.forEach(function(it){ it.ref.x = it.x; it.ref.y = it.y; });
+	}
+
+	// ---------- modal dialog (add / edit link) ----------
+	var modal = document.getElementById("modal");
+	var mTitle = document.getElementById("m-title");
+	var mUrl = document.getElementById("m-url");
+	var mLabel = document.getElementById("m-label");
+	var mIcon = document.getElementById("m-icon");
+	var mPreview = document.getElementById("m-preview");
+	var mBgOn = document.getElementById("m-bg-on");
+	var mBg = document.getElementById("m-bg");
+	var mFgOn = document.getElementById("m-fg-on");
+	var mFg = document.getElementById("m-fg");
+	var mHeading = document.getElementById("modalTitle");
+	var modalSave = null;
+
+	function renderIconPreview(){
+		mPreview.innerHTML = "";
+		var v = cleanIcon(mIcon.value);
+		var src = null;
+		if (v){
+			if (/^(https?:|data:|\/)/i.test(v) || /\.(png|svg|ico|jpg|jpeg|webp|gif)$/i.test(v)) src = v;
+			else src = diSvg(v);   // dashboard-icons name
+		}
+		if (src){
+			var img = document.createElement("img"); img.alt="náhľad";
+			img.onerror = function(){ mPreview.innerHTML = '<span class="field-hint">náhľad sa nenačítal</span>'; };
+			img.src = src;
+			mPreview.appendChild(img);
+			var cap = document.createElement("span"); cap.className="field-hint"; cap.textContent="náhľad ikony";
+			mPreview.appendChild(cap);
+		}
+		loadPalette(src);   // refresh the colour swatches from this icon
+	}
+
+	// ---------- colour swatches (white, black + dominant colours from the icon) ----------
+	function rgbHex(r,g,b){ return "#"+[r,g,b].map(function(v){ return ("0"+(v&255).toString(16)).slice(-2); }).join(""); }
+	// extract up to 5 dominant colours from an image via a small canvas (needs CORS-clean source)
+	function getPalette(img){
+		try {
+			var n = 24, cv = document.createElement("canvas"); cv.width = n; cv.height = n;
+			var ctx = cv.getContext("2d"); ctx.drawImage(img, 0, 0, n, n);
+			var d = ctx.getImageData(0, 0, n, n).data, counts = {};
+			for(var i=0;i<d.length;i+=4){
+				if(d[i+3] < 125) continue;                         // skip transparent
+				var r=(d[i]&0xE0), g=(d[i+1]&0xE0), b=(d[i+2]&0xE0); // quantise to 3 bits/channel
+				var key = r+","+g+","+b; counts[key] = (counts[key]||0) + 1;
+			}
+			return Object.keys(counts)
+				.map(function(k){ var p=k.split(",").map(Number); return { hex:rgbHex(p[0]+16,p[1]+16,p[2]+16), n:counts[k] }; })
+				.sort(function(a,b){ return b.n - a.n; })
+				.slice(0, 5).map(function(c){ return c.hex; });
+		} catch(e){ return []; }   // tainted canvas (e.g. favicon without CORS headers)
+	}
+	function makeSwatch(color, input, checkbox){
+		var b = document.createElement("button");
+		b.type = "button"; b.className = "swatch"; b.style.background = color; b.title = color;
+		b.onclick = function(){ input.value = color; checkbox.checked = true; input.disabled = false; };
+		return b;
+	}
+	function renderSwatches(palette){
+		var base = ["#ffffff", "#000000"].concat(palette || []);
+		[[ "m-bg-sw", mBg, mBgOn ], [ "m-fg-sw", mFg, mFgOn ]].forEach(function(cfg){
+			var box = document.getElementById(cfg[0]); box.innerHTML = "";
+			base.forEach(function(c){ box.appendChild(makeSwatch(c, cfg[1], cfg[2])); });
+		});
+	}
+	function loadPalette(src){
+		renderSwatches([]);                       // show white/black immediately
+		if(!src) return;
+		var im = new Image(); im.crossOrigin = "anonymous";
+		im.onload  = function(){ renderSwatches(getPalette(im)); };
+		im.onerror = function(){ renderSwatches([]); };
+		im.src = src;
+	}
+
+	function openLinkModal(heading, data, onSave){
+		mHeading.textContent = heading;
+		mTitle.value = data.title || "";
+		mUrl.value   = data.url || "";
+		mLabel.value = data.label || "";
+		mIcon.value  = data.icon || "";
+		if (data.bg){ mBgOn.checked = true; mBg.value = data.bg; mBg.disabled = false; }
+		else { mBgOn.checked = false; mBg.value = "#232834"; mBg.disabled = true; }
+		if (data.fg){ mFgOn.checked = true; mFg.value = data.fg; mFg.disabled = false; }
+		else { mFgOn.checked = false; mFg.value = "#e7eaf0"; mFg.disabled = true; }
+		renderIconPreview();
+		modalSave = onSave;
+		modal.classList.remove("hidden");
+		setTimeout(function(){ mTitle.focus(); }, 0);
+	}
+	function closeModal(){ modal.classList.add("hidden"); modalSave = null; }
+	function commitModal(){
+		var title = mTitle.value.trim(), url = mUrl.value.trim();
+		if(!title){ mTitle.focus(); return; }
+		if(!url){ mUrl.focus(); return; }
+		var fn = modalSave; closeModal();
+		if (fn) fn({ title: title, url: url, label: mLabel.value.trim(),
+			icon: cleanIcon(mIcon.value),
+			bg: mBgOn.checked ? mBg.value : "",
+			fg: mFgOn.checked ? mFg.value : "" });
+	}
+	mBgOn.addEventListener("change", function(){ mBg.disabled = !mBgOn.checked; });
+	mFgOn.addEventListener("change", function(){ mFg.disabled = !mFgOn.checked; });
+	mIcon.addEventListener("input", renderIconPreview);
+	document.getElementById("m-save").onclick = commitModal;
+	document.getElementById("m-cancel").onclick = closeModal;
+	modal.addEventListener("mousedown", function(e){ if(e.target===modal) closeModal(); });
+	modal.addEventListener("keydown", function(e){
+		if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); closeModal(); }
+		// Enter saves (except inside the multiline icon textarea)
+		if(e.key==="Enter" && e.target!==mIcon){ e.preventDefault(); e.stopPropagation(); commitModal(); }
+	});
+
+	// ---------- edit ops ----------
+	function addLink(gid){
+		openLinkModal("Nový link", {}, function(d){
+			var spot = findFreeSpot(0, 0, TILE_W, TILE_H, groupSiblingRects(gid, null));
+			state.links.push({ id: uid("l"), title: d.title, url: d.url, icon: d.icon,
+				label: d.label, bg: d.bg, fg: d.fg, groupId: gid, x: spot.x, y: spot.y, order: linksOf(gid).length });
+			markDirty(); render();
+			// the new link may have opened a new row → group grew; make room below it
+			if(relayoutBoard(gid)){ markDirty(); render(); }
+		});
+	}
+	// add a standalone link not belonging to any group (free-floating on the board)
+	function addFloatingLink(){
+		openLinkModal("Nový link (mimo skupinu)", {}, function(d){
+			var spot = findFreeSpot(20, 20, 88, 116, occupiedRects(null));
+			state.links.push({ id: uid("l"), title: d.title, url: d.url, icon: d.icon,
+				label: d.label, bg: d.bg, fg: d.fg, groupId: null, x: spot.x, y: spot.y, order: state.links.length });
+			markDirty(); render();
+		});
+	}
+	function editLink(l){
+		openLinkModal("Upraviť link", l, function(d){
+			l.title = d.title; l.url = d.url; l.icon = d.icon; l.label = d.label;
+			if (d.bg) l.bg = d.bg; else delete l.bg;
+			if (d.fg) l.fg = d.fg; else delete l.fg;
+			markDirty(); render();
+		});
+	}
+	function removeLink(id){
+		var l = state.links.find(function(x){return x.id===id;});
+		if(!l) return;
+		if(!confirm("Zmazať „"+l.title+"“?")) return;
+		var gid = l.groupId;
+		var sec = gid ? board.querySelector('.group[data-gid="'+gid+'"]') : null;
+		var oldH = sec ? sec.offsetHeight : 0;
+		state.links = state.links.filter(function(x){return x.id!==id;});
+		markDirty(); render();
+		// the group may have lost a row → pull elements below it back up
+		if(gid){
+			var s2 = board.querySelector('.group[data-gid="'+gid+'"]');
+			if(s2 && pullUpBelow(gid, oldH - s2.offsetHeight)){ markDirty(); render(); }
+		}
+	}
+	// ---------- group modal ----------
+	var gModal = document.getElementById("groupModal");
+	var gTitle = document.getElementById("g-title");
+	var gColorOn = document.getElementById("g-color-on");
+	var gColor = document.getElementById("g-color");
+	var gHeading = document.getElementById("groupModalTitle");
+	var groupSave = null;
+
+	function openGroupModal(heading, data, onSave){
+		gHeading.textContent = heading;
+		gTitle.value = data.title || "";
+		if (data.color){ gColorOn.checked = true; gColor.value = data.color; gColor.disabled = false; }
+		else { gColorOn.checked = false; gColor.value = "#5b8cff"; gColor.disabled = true; }
+		groupSave = onSave;
+		gModal.classList.remove("hidden");
+		setTimeout(function(){ gTitle.focus(); }, 0);
+	}
+	function closeGroupModal(){ gModal.classList.add("hidden"); groupSave = null; }
+	function commitGroupModal(){
+		var title = gTitle.value.trim();
+		if(!title){ gTitle.focus(); return; }
+		var fn = groupSave; closeGroupModal();
+		if (fn) fn({ title: title, color: gColorOn.checked ? gColor.value : "" });
+	}
+	gColorOn.addEventListener("change", function(){ gColor.disabled = !gColorOn.checked; });
+	document.getElementById("g-save").onclick = commitGroupModal;
+	document.getElementById("g-cancel").onclick = closeGroupModal;
+	gModal.addEventListener("mousedown", function(e){ if(e.target===gModal) closeGroupModal(); });
+	gModal.addEventListener("keydown", function(e){
+		if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); closeGroupModal(); }
+		if(e.key==="Enter"){ e.preventDefault(); e.stopPropagation(); commitGroupModal(); }
+	});
+
+	function addGroup(){
+		openGroupModal("Nová skupina", {}, function(d){
+			state.groups.push({ id: uid("g"), title: d.title, color: d.color, order: state.groups.length });
+			markDirty(); render();
+		});
+	}
+	function editGroup(g){
+		openGroupModal("Upraviť skupinu", g, function(d){
+			g.title = d.title;
+			if (d.color) g.color = d.color; else delete g.color;
+			markDirty(); render();
+		});
+	}
+	function removeGroup(gid){
+		var g = state.groups.find(function(x){return x.id===gid;});
+		var n = linksOf(gid).length;
+		if(!confirm("Zmazať skupinu „"+g.title+"“"+(n?(" aj s "+n+" linkami"):"")+"?")) return;
+		state.groups = state.groups.filter(function(x){return x.id!==gid;});
+		state.links = state.links.filter(function(x){return x.groupId!==gid;});
+		markDirty(); render();
+	}
+
+	function markDirty(){
+		dirty = true;
+		state.meta.updatedAt = new Date().toISOString();
+		try { localStorage.setItem("FAV_cache", JSON.stringify(state)); } catch(e){}
+		if (fileHandle) saveToFile();   // autosave if connected
+		updateStatus();
+	}
+
+	// ---------- embed external icons as base64 into links.js (offline) ----------
+	function blobToDataURL(blob){
+		return new Promise(function(res, rej){
+			var fr = new FileReader();
+			fr.onload = function(){ res(fr.result); };
+			fr.onerror = function(){ rej(fr.error); };
+			fr.readAsDataURL(blob);
+		});
+	}
+	// real image type of a blob, or null: trust an image/* MIME, otherwise sniff the
+	// first bytes — many homelab servers send icons as octet-stream/text/plain, and
+	// SPA/login servers return their HTML page with 200 for /favicon.ico (never trust
+	// the URL extension: that is how a whole login page once got embedded as an icon)
+	async function imageBlobType(blob){
+		if(/^image\//i.test(blob.type)) return blob.type;
+		try {
+			var b = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+			if(b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47) return "image/png";
+			if(b[0]===0x00 && b[1]===0x00 && b[2]===0x01 && b[3]===0x00) return "image/x-icon";
+			if(b[0]===0x47 && b[1]===0x49 && b[2]===0x46 && b[3]===0x38) return "image/gif";
+			if(b[0]===0xFF && b[1]===0xD8) return "image/jpeg";
+			if(b[0]===0x42 && b[1]===0x4D) return "image/bmp";
+			if(b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 &&
+			   b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50) return "image/webp";
+			var head = (await blob.slice(0, 256).text()).trim().toLowerCase();
+			if(head.indexOf("<svg")===0 || (head.indexOf("<?xml")===0 && head.indexOf("<svg")>=0)) return "image/svg+xml";
+		} catch(e){}
+		return null;
+	}
+	async function embedIcons(){
+		var changed = 0, failed = 0, notImage = 0, total = state.links.length;
+		setHint("Sťahujem ikony… (0/" + total + ")");
+		for(var i=0;i<state.links.length;i++){
+			var l = state.links[i];
+			// only a data:image counts as embedded — a broken non-image data: gets re-fetched
+			if(/^data:image\//i.test(cleanIcon(l.icon))) continue;
+			var cands = iconCandidates(l), uri = null, sawNonImage = false;
+			for(var c=0;c<cands.length;c++){
+				var url = cands[c];
+				try {
+					var res = await fetch(url, { mode:"cors" });
+					if(!res.ok) continue;
+					var blob = await res.blob();
+					var type = await imageBlobType(blob);
+					if(!type){ sawNonImage = true; continue; }             // not an image → next candidate
+					if(blob.type !== type) blob = new Blob([blob], { type: type });  // fix wrong MIME for the data: URI
+					uri = await blobToDataURL(blob);
+					break;
+				} catch(e){ /* CORS/network → try next candidate */ }
+			}
+			if(uri){ l.icon = uri; changed++; }
+			else if(sawNonImage){ notImage++; }
+			else { failed++; }
+			setHint("Sťahujem ikony… (" + (i+1) + "/" + total + ")");
+		}
+		if(changed){ markDirty(); render(); }
+		setHint("Ikony vložené: " + changed
+			+ (failed ? (" · nedostupné (CORS/sieť): " + failed) : "")
+			+ (notImage ? (" · server nevrátil obrázok: " + notImage) : ""));
+	}
+
+	// ---------- File System Access ----------
+	function serialize(){
+		return "// FAVpage data — loaded via <script src=\"links.js\"><\/script>\n" +
+		       "// Auto-generated, neupravuj ručne ak používaš appku.\n" +
+		       "window.FAV = " + JSON.stringify(state, null, 2) + ";\n";
+	}
+	async function connect(){
+		if(!window.showOpenFilePicker){ alert("Tento prehliadač nepodporuje File System Access API. Použi Chrome/Edge/Brave."); return; }
+		try {
+			var [h] = await window.showOpenFilePicker({
+				types:[{description:"links.js", accept:{"text/javascript":[".js"]}}],
+				multiple:false
+			});
+			var perm = await h.requestPermission({ mode:"readwrite" });
+			if(perm!=="granted"){ alert("Bez povolenia na zápis sa nedá ukladať."); return; }
+			fileHandle = h;
+			await idbSet("linksHandle", h);
+			await reloadFromFile();   // pull latest synced version
+			updateStatus("Pripojené – ukladám automaticky.");
+		} catch(e){ if(e.name!=="AbortError") setHint("Chyba pripojenia: "+e.message); }
+	}
+	// safety net on every save: drop any embedded icon that is not a real image
+	// (e.g. an HTML page embedded from /favicon.ico) so bad data never reaches links.js;
+	// the link falls back to the automatic icon chain (favicon → letter)
+	function sanitizeIcons(){
+		var n = 0;
+		state.links.forEach(function(l){
+			var v = cleanIcon(l.icon);
+			if(/^data:/i.test(v) && !/^data:image\//i.test(v)){ l.icon = ""; n++; }
+		});
+		return n;
+	}
+	async function saveToFile(){
+		var cleaned = sanitizeIcons();
+		if(cleaned) render();
+		try {
+			if(!fileHandle){
+				// first save: let the user pick links.js, then WRITE current state (no reload/overwrite)
+				if(!window.showOpenFilePicker){ alert("Tento prehliadač nepodporuje File System Access API. Použi Chrome/Edge/Brave."); return; }
+				var [h] = await window.showOpenFilePicker({
+					types:[{description:"links.js", accept:{"text/javascript":[".js"]}}],
+					multiple:false
+				});
+				if((await h.requestPermission({ mode:"readwrite" }))!=="granted"){ alert("Bez povolenia na zápis sa nedá ukladať."); return; }
+				fileHandle = h; await idbSet("linksHandle", h);
+			} else {
+				if((await fileHandle.queryPermission({mode:"readwrite"}))!=="granted"){
+					if((await fileHandle.requestPermission({mode:"readwrite"}))!=="granted") return;
+				}
+			}
+			var w = await fileHandle.createWritable();
+			await w.write(serialize()); await w.close();
+			dirty = false;
+			updateStatus("Uložené "+new Date().toLocaleTimeString()
+				+ (cleaned ? (" · odstránené neplatné ikony (HTML/ne-obrázok): "+cleaned) : ""));
+		} catch(e){ if(e.name!=="AbortError") setHint("Chyba uloženia: "+e.message); }
+	}
+	async function reloadFromFile(){
+		if(!fileHandle){ setHint("Najprv Pripojiť súbor."); return; }
+		if(dirty && !confirm("Máš neuložené zmeny – načítaním zo súboru sa prepíšu. Pokračovať?")) return;
+		try {
+			var f = await fileHandle.getFile();
+			var text = await f.text();
+			var w = {}; (new Function("window", text))(w);
+			if(w.FAV){ state = clone(w.FAV); normalize(state); dirty = false; render();
+				// user chose the file as the source of truth → align the cache with it
+				try { localStorage.setItem("FAV_cache", JSON.stringify(state)); } catch(e){}
+				updateStatus("Načítané zo súboru "+new Date().toLocaleTimeString()); }
+		} catch(e){ setHint("Chyba načítania: "+e.message); }
+	}
+	async function tryRestoreHandle(){
+		try {
+			var h = await idbGet("linksHandle");
+			if(h){ fileHandle = h; updateStatus("Súbor zapamätaný – klikni Načítať/Uložiť pre povolenie."); }
+		} catch(e){}
+	}
+
+	// multi-computer sync: another machine may have written links.js (via Nextcloud)
+	// while this page is open — compare the file's content timestamp in the background
+	// (on focus + every minute) and auto-load it when it is newer; never overwrites
+	// local unsaved changes, only warns about the conflict
+	async function checkFileForUpdates(){
+		if(!fileHandle) return;
+		try {
+			if((await fileHandle.queryPermission({ mode:"read" })) !== "granted") return;  // stay silent, no permission prompt
+			var f = await fileHandle.getFile();
+			var text = await f.text();
+			var w = {}; (new Function("window", text))(w);
+			if(!w.FAV || stateTs(w.FAV) <= stateTs(state)) return;
+			if(dirty){
+				setHint("links.js medzitým zmenil iný počítač – máš aj lokálne neuložené zmeny. Ulož (prepíšeš súbor) alebo Načítaj (zahodíš lokálne).");
+				return;
+			}
+			state = clone(w.FAV); normalize(state); render();
+			try { localStorage.setItem("FAV_cache", JSON.stringify(state)); } catch(e){}
+			updateStatus("Načítaná novšia verzia zo súboru ("+new Date(stateTs(state)).toLocaleTimeString()+").");
+		} catch(e){ /* background check must never bother the user */ }
+	}
+
+	// tiny IndexedDB kv
+	function idb(){ return new Promise(function(res,rej){
+		var r = indexedDB.open("favpage",1);
+		r.onupgradeneeded=function(){ r.result.createObjectStore("kv"); };
+		r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+	}); }
+	async function idbSet(k,v){ var db=await idb(); return new Promise(function(res,rej){
+		var t=db.transaction("kv","readwrite"); t.objectStore("kv").put(v,k);
+		t.oncomplete=function(){res();}; t.onerror=function(){rej(t.error);}; }); }
+	async function idbGet(k){ var db=await idb(); return new Promise(function(res,rej){
+		var t=db.transaction("kv","readonly"); var rq=t.objectStore("kv").get(k);
+		rq.onsuccess=function(){res(rq.result);}; rq.onerror=function(){rej(rq.error);}; }); }
+
+	// ---------- status / ui ----------
+	function updateStatus(msg){
+		var dot = document.getElementById("connDot");
+		var btn = document.getElementById("connectBtn");
+		if(fileHandle){ dot.className="dot ok"; btn.title="Pripojené – ukladám automaticky"; }
+		else { dot.className="dot off"; btn.title="Pripojiť links.js pre ukladanie"; }
+		document.getElementById("saveBtn").classList.toggle("primary", dirty);
+		if(msg) setHint(msg);
+	}
+
+	function toggleEdit(){
+		editing = !editing;
+		if(!editing) clearSelection();
+		document.body.classList.toggle("editing", editing);
+		var eb = document.getElementById("editBtn");
+		eb.classList.toggle("on", editing);
+		eb.innerHTML = editing
+			? '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>'        // ✓ check
+			: '<svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>'; // pencil
+		eb.title = editing ? "Hotovo" : "Upraviť";
+		render();
+		setHint(editing ? "Režim úprav: ⠿ ťahaj skupinu kdekoľvek. Pravý dolný roh skupiny = zmena veľkosti. Ikonu ťahaj voľne kamkoľvek – v rámci skupiny na ľubovoľné miesto, do inej skupiny, alebo na voľnú plochu (= samostatná ikona). Prvky sa neprekrývajú. + v hlavičke skupiny pridá link, ✎ uprav, ✕ zmaž."
+		                : "");
+	}
+
+	// ---------- wire up ----------
+	document.getElementById("editBtn").onclick = toggleEdit;
+	document.getElementById("addGroup").onclick = addGroup;
+	document.getElementById("addLink").onclick = addFloatingLink;
+	document.getElementById("embedIcons").onclick = embedIcons;
+	document.getElementById("connectBtn").onclick = connect;
+	document.getElementById("saveBtn").onclick = saveToFile;
+	document.getElementById("reloadBtn").onclick = reloadFromFile;
+
+	// rotácia hover okraja dlaždice: rAF loop točí --spin len na dlaždici pod kurzorom
+	(function(){
+		var el = null, raf = 0, ang = 0, last = 0;
+		function tick(t){
+			if(!el){ raf = 0; return; }
+			ang = (ang + (t - last) * 0.225) % 360;   // 360° za 1.6 s
+			last = t;
+			el.style.setProperty("--spin", ang + "deg");
+			raf = requestAnimationFrame(tick);
+		}
+		board.addEventListener("mouseover", function(e){
+			var t = e.target.closest && e.target.closest(".tile");
+			if(!t || t === el) return;
+			if(el) el.style.removeProperty("--spin");
+			el = t; ang = 0;
+			if(!raf){ last = performance.now(); raf = requestAnimationFrame(tick); }
+		});
+		board.addEventListener("mouseout", function(e){
+			var t = e.target.closest && e.target.closest(".tile");
+			if(t && el === t && !(e.relatedTarget && t.contains(e.relatedTarget))){
+				t.style.removeProperty("--spin");
+				el = null;
+			}
+		});
+	})();
+
+	var searchBtn = document.getElementById("searchBtn");
+	function openSearch(){
+		document.body.classList.add("search-open");
+		searchBtn.classList.add("on");
+		setTimeout(function(){ searchEl.focus(); }, 0);
+	}
+	function closeSearch(){
+		if(searchEl.value){ searchEl.value = ""; render(); }
+		document.body.classList.remove("search-open");
+		searchBtn.classList.remove("on");
+	}
+	searchBtn.addEventListener("mousedown", function(e){ e.preventDefault(); });  // nechaj fokus v inpute, inak blur predbehne klik
+	searchBtn.onclick = function(){
+		if(document.body.classList.contains("search-open")) closeSearch();
+		else openSearch();
+	};
+	// prázdny input po odchode fokusu sa sám zbalí
+	searchEl.addEventListener("blur", function(){ if(!searchEl.value.trim()) closeSearch(); });
+	searchEl.addEventListener("input", render);
+	document.addEventListener("keydown", function(e){
+		if(e.key==="/" && document.activeElement!==searchEl){ e.preventDefault(); openSearch(); }
+		if(e.key==="Escape"){ closeSearch(); searchEl.blur(); clearSelection(); }
+	});
+
+	render();
+	tryRestoreHandle().then(checkFileForUpdates);
+	updateStatus();
+	if(dirty) setHint("Obnovené neuložené zmeny z tohto prehliadača – nezabudni Uložiť.");
+	window.addEventListener("focus", checkFileForUpdates);
+	setInterval(checkFileForUpdates, 60000);
+})();
+</script>
+<script>
+// animované pozadie: pomalá sieť bodov so spojnicami, kreslená s alfou 30 %;
+// canvas je fixne pod obsahom (pointer-events none), rAF sa pri skrytom tabe sám pozastaví
+(function(){
+	"use strict";
+	var cv = document.getElementById("bgnet"), ctx = cv.getContext("2d");
+	var ALPHA = 0.30;            // celková priehľadnosť efektu
+	var DENSITY = 1 / 22000;     // ~1 bod na 22k px²
+	var LINK_DIST = 150;         // max. dĺžka spojnice
+	var SPEED = 0.25;            // px/snímka
+	function accentRGB(){
+		var v = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+		var m = /^#([0-9a-f]{6})$/i.exec(v);
+		if(!m) return "91,140,255";
+		var n = parseInt(m[1], 16);
+		return (n>>16&255) + "," + (n>>8&255) + "," + (n&255);
+	}
+	var COLOR = accentRGB();
+	var pts = [], W = 0, H = 0;
+	function resize(){
+		var dpr = Math.min(window.devicePixelRatio || 1, 2);
+		W = window.innerWidth; H = window.innerHeight;
+		cv.width = W * dpr; cv.height = H * dpr;
+		cv.style.width = W + "px"; cv.style.height = H + "px";
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		var want = Math.round(W * H * DENSITY);
+		while(pts.length < want) pts.push(spawn());
+		pts.length = Math.min(pts.length, want);
+	}
+	function spawn(){
+		var a = Math.random() * Math.PI * 2, v = SPEED * (0.5 + Math.random());
+		return { x: Math.random()*W, y: Math.random()*H, vx: Math.cos(a)*v, vy: Math.sin(a)*v,
+		         r: 1 + Math.random()*1.5 };
+	}
+	function step(){
+		ctx.clearRect(0, 0, W, H);
+		ctx.globalAlpha = ALPHA;
+		for(var i=0;i<pts.length;i++){
+			var p = pts[i];
+			p.x += p.vx; p.y += p.vy;
+			if(p.x < 0 || p.x > W) p.vx = -p.vx;
+			if(p.y < 0 || p.y > H) p.vy = -p.vy;
+		}
+		for(var i=0;i<pts.length;i++){
+			for(var j=i+1;j<pts.length;j++){
+				var dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+				var d2 = dx*dx + dy*dy;
+				if(d2 > LINK_DIST*LINK_DIST) continue;
+				var k = 1 - Math.sqrt(d2) / LINK_DIST;
+				ctx.strokeStyle = "rgba(" + COLOR + "," + (k * 0.55) + ")";
+				ctx.lineWidth = 1;
+				ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke();
+			}
+		}
+		for(var i=0;i<pts.length;i++){
+			var p = pts[i];
+			ctx.fillStyle = "rgba(" + COLOR + ",0.9)";
+			ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+		}
+		requestAnimationFrame(step);
+	}
+	window.addEventListener("resize", resize);
+	resize();
+	requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>

@@ -106,7 +106,13 @@
 		flex: 1 1 auto;
 		padding: 16px 22px 40px;
 		overflow: auto;   /* only the board scrolls, and only when its content is taller than the viewport */
+		/* ťahanie myšou po ploche (lasso, presuny) nemá označovať texty dlaždíc a skupín */
+		user-select: none; -webkit-user-select: none;
 	}
+	header, #rail { user-select: none; -webkit-user-select: none; }
+	/* v poznámke sa text označovať dá (písanie/kopírovanie), ale nie počas režimu úprav (drag) */
+	.note-body { user-select: text; -webkit-user-select: text; }
+	body.editing .note-body { user-select: none; -webkit-user-select: none; }
 	body.editing main {
 		background-image:
 			linear-gradient(var(--grid-dot) 1px, transparent 1px),
@@ -252,6 +258,49 @@
 		border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
 		opacity: .3; transition: opacity .15s; }
 	#accentPick:hover { opacity: 1; }
+	/* zvislý prepínač plôch (tabov) na ľavom okraji: bodky + „+“, názvy pri hoveri */
+	#rail { position: fixed; left: 10px; top: 50%; transform: translateY(-50%); z-index: 30;
+		display: flex; flex-direction: column; gap: 12px; }
+	#rail .rtab { display: flex; align-items: center; gap: 8px; cursor: pointer;
+		background: none; border: none; padding: 0; color: var(--muted); font-size: 11px; }
+	#rail .rdot { width: 11px; height: 11px; border-radius: 50%; background: var(--line);
+		flex: 0 0 11px; transition: transform .12s, background .12s; }
+	#rail .rtab:not(.on) .rdot { opacity: .6; }
+	#rail .rtab.on .rdot { transform: scale(1.3); opacity: 1; }
+	#rail .rlbl { opacity: 0; transform: translateX(-4px); transition: opacity .15s, transform .15s;
+		white-space: nowrap; }
+	#rail:hover .rlbl { opacity: 1; transform: none; }
+	#rail .rtab.on .rlbl { color: var(--text); }
+	#rail .rdot.radd { background: none; color: var(--muted); font-size: 15px; font-weight: 700;
+		line-height: 11px; text-align: center; opacity: 1; }
+	#rail .rtab:hover .rdot.radd { color: var(--accent); }
+	/* správa plôch (dialóg) */
+	.board-row { display: flex; align-items: center; gap: 8px; padding: 7px 0;
+		border-bottom: 1px solid var(--line); }
+	.board-row:last-child { border-bottom: 0; }
+	.board-row.hid { opacity: .5; }
+	.board-row input[type="text"] { width: auto; flex: 1; }
+	.board-row input[type="color"] { width: 34px; height: 28px; flex: 0 0 auto; }
+	.board-row .btn { padding: 4px 8px; font-size: 12px; flex: 0 0 auto; }
+	.board-row .btn svg { width: 14px; height: 14px; display: block; fill: none; stroke: currentColor;
+		stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+	.board-row .btn:disabled { opacity: .35; cursor: default; }
+	/* oko (skryť/zobraziť) býva vnútri textového poľa, ✕ a + mimo neho */
+	.bm-field { position: relative; flex: 1; min-width: 0; }
+	.bm-field input[type="text"] { width: 100%; padding-right: 38px; }
+	.bm-tools { position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+		display: flex; gap: 2px; }
+	.bm-tools .btn { padding: 3px 6px; font-size: 12px; border: none; background: transparent;
+		color: var(--muted); border-radius: 7px; }
+	.bm-tools .btn:hover { color: var(--text); background: var(--tile-h); }
+	.board-row .bm-handle { cursor: grab; color: var(--muted); font-size: 14px;
+		user-select: none; touch-action: none; padding: 0; width: 16px; text-align: center;
+		flex: 0 0 16px; }
+	/* odsadenie pridávacieho riadku = šírka úchytu, aby farby lícovali pod sebou */
+	.bm-spacer { flex: 0 0 16px; }
+	.board-row .bm-handle:active { cursor: grabbing; }
+	.board-row.dragging { opacity: .65; background: var(--tile-h); border-radius: 8px; }
+	.board-row.add-row { border-bottom: 0; margin-top: 4px; }
 	/* transient toast (fixed, no layout impact) – auto-hides; no permanent status bar */
 	.hint {
 		position: fixed; left: 22px; bottom: 16px; z-index: 40; max-width: min(70ch, 90vw);
@@ -266,7 +315,7 @@
 	/* modal */
 	.modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
 		background: rgba(0,0,0,.55); backdrop-filter: blur(3px); }
-	.modal-card { width: min(460px, 92vw); max-height: 90vh; overflow: auto;
+	.modal-card { position: relative; width: min(460px, 92vw); max-height: 90vh; overflow: auto;
 		background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px 20px 18px;
 		box-shadow: 0 20px 60px rgba(0,0,0,.5); }
 	.modal-card h3 { margin: 0 0 14px; font-size: 17px; }
@@ -317,6 +366,8 @@
 				<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>
 			<button class="btn icon" id="addNote" title="Pridať poznámku" aria-label="Pridať poznámku" data-i18n-title="add_note" data-i18n-aria="add_note">
 				<svg viewBox="0 0 24 24"><path d="M21 3H3v18h12l6-6z"/><polyline points="15 21 15 15 21 15"/></svg></button>
+			<button class="btn icon" id="boardsBtn" title="Správa plôch" aria-label="Správa plôch" data-i18n-title="boards_btn" data-i18n-aria="boards_btn">
+				<svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></button>
 			<button class="btn icon" id="embedIcons" title="Stiahnuť a vložiť ikony do links.js (offline)" aria-label="Vložiť ikony" data-i18n-title="embed_title" data-i18n-aria="embed_aria">
 				<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
 			<input type="color" id="accentPick" value="#5b8cff" title="Farba akcentu" data-i18n-title="accent_title">
@@ -329,6 +380,7 @@
 </header>
 
 <main id="board"></main>
+<nav id="rail"></nav>
 <div id="lasso"></div>
 <p class="hint" id="hint"></p>
 
@@ -385,6 +437,14 @@
 	</div>
 </div>
 
+<div class="modal hidden" id="boardsModal">
+	<div class="modal-card">
+		<h3 data-i18n="boards_title">Správa plôch</h3>
+		<div id="boardsList"></div>
+		<div id="boardAddRow"></div>
+	</div>
+</div>
+
 <script src="links.js"></script>
 <script>
 (function () {
@@ -415,6 +475,19 @@
 			add_note: "Pridať poznámku",
 			note_ph: "Píš sem…",
 			resize_note: "Ťahaj pre zmenu veľkosti poznámky",
+			boards_btn: "Správa plôch",
+			boards_title: "Správa plôch",
+			board_add: "Pridať plochu",
+			board_first: "Doma",
+			board_drag: "Ťahaj pre zmenu poradia",
+			board_new_ph: "Nová plocha – zadaj názov…",
+			board_hide: "Skryť plochu",
+			board_show: "Zobraziť plochu",
+			board_del: "Zmazať plochu",
+			board_del_q: "Zmazať plochu „{title}“? Jej obsah sa presunie na prvú plochu.",
+			board_last: "Posledná plocha sa nedá zmazať.",
+			board_last_visible: "Aspoň jedna plocha musí ostať viditeľná.",
+			search_switched: "Výsledky na ploche „{title}“.",
 			theme_title: "Svetlý / tmavý režim",
 			accent_title: "Farba akcentu (ukladá sa do links.js)",
 			new_link: "Nový link",
@@ -497,6 +570,19 @@
 			add_note: "Add note",
 			note_ph: "Type here…",
 			resize_note: "Drag to resize the note",
+			boards_btn: "Manage boards",
+			boards_title: "Manage boards",
+			board_add: "Add board",
+			board_first: "Home",
+			board_drag: "Drag to reorder",
+			board_new_ph: "New board – type a name…",
+			board_hide: "Hide board",
+			board_show: "Show board",
+			board_del: "Delete board",
+			board_del_q: "Delete board “{title}”? Its content moves to the first board.",
+			board_last: "The last board cannot be deleted.",
+			board_last_visible: "At least one board must stay visible.",
+			search_switched: "Results on board “{title}”.",
 			theme_title: "Light / dark mode",
 			accent_title: "Accent color (saved into links.js)",
 			new_link: "New link",
@@ -656,7 +742,13 @@
 	function snap(v){ return Math.round(v / GRID) * GRID; }
 	function normalize(s){
 		s.groups = s.groups || []; s.links = s.links || []; s.meta = s.meta || {};
+		// plochy (taby): migrácia starších dát – všetko existujúce patrí prvej ploche
+		s.boards = s.boards || [];
+		if(!s.boards.length) s.boards.push({ id: uid("b"), title: t("board_first"), order: 0 });
+		s.boards.forEach(function(b,i){ if(b.order==null) b.order=i; });
+		var fb = s.boards.slice().sort(function(a,b){return a.order-b.order;})[0].id;
 		s.groups.forEach(function(g,i){
+			if(!g.boardId) g.boardId = fb;
 			if(g.order==null) g.order=i;
 			if(g.x==null) g.x = 20 + (i % 4) * 320;     // default spread, user rearranges
 			if(g.y==null) g.y = 20 + Math.floor(i / 4) * 360;
@@ -669,6 +761,7 @@
 			if(l.groupId === undefined) l.groupId = null;
 			// floating link (no group) needs a board position
 			if(l.groupId==null){
+				if(!l.boardId) l.boardId = fb;
 				if(l.x==null) l.x = 20 + (i % 6) * 160;
 				if(l.y==null) l.y = 20;
 				l.x = Math.max(PAD, l.x); l.y = Math.max(PAD, l.y);   // odsadenie od okrajov
@@ -733,11 +826,60 @@
 	function floatingLinks(){ return state.links.filter(function(l){return l.groupId==null;}).sort(function(a,b){return a.order-b.order;}); }
 	function matches(l, q){ return !q || (l.title||"").toLowerCase().indexOf(q)>=0 || (l.url||"").toLowerCase().indexOf(q)>=0 || (l.text||"").toLowerCase().indexOf(q)>=0; }
 
+	// ---------- viac plôch (tabov) ----------
+	// state.boards = [{id, title, color?, hidden?, order}]; skupiny a voľné dlaždice
+	// nesú boardId. Posledná aktívna plocha sa pamätá per prehliadač (localStorage).
+	var curBoard = null;
+	try { curBoard = localStorage.getItem("FAV_board"); } catch(e){}
+	function boardsSorted(){ return state.boards.slice().sort(function(a,b){return a.order-b.order;}); }
+	function visibleBoards(){ return boardsSorted().filter(function(b){return !b.hidden;}); }
+	function storeBoard(){ try { localStorage.setItem("FAV_board", curBoard); } catch(e){} }
+	function ensureBoard(){
+		if(!visibleBoards().length) boardsSorted()[0].hidden = false;   // aspoň jedna viditeľná
+		var ok = state.boards.some(function(b){ return b.id === curBoard && !b.hidden; });
+		if(!ok){ curBoard = visibleBoards()[0].id; storeBoard(); }
+	}
+	function setBoard(id){ curBoard = id; storeBoard(); render(); }
+	function boardOfLink(l){
+		if(l.groupId){ var g = state.groups.find(function(x){return x.id===l.groupId;}); return g ? g.boardId : null; }
+		return l.boardId;
+	}
+	// zvislý prepínač na ľavom okraji: bodka na plochu (farba z nastavení), posledné je +
+	function renderRail(){
+		var rail = document.getElementById("rail");
+		rail.innerHTML = "";
+		visibleBoards().forEach(function(b){
+			var btn = document.createElement("button");
+			btn.className = "rtab" + (b.id === curBoard ? " on" : "");
+			btn.title = b.title;
+			var dot = document.createElement("span"); dot.className = "rdot";
+			if(b.color) dot.style.background = b.color;
+			else if(b.id === curBoard) dot.style.background = "var(--accent)";
+			var lbl = document.createElement("span"); lbl.className = "rlbl"; lbl.textContent = b.title;
+			btn.appendChild(dot); btn.appendChild(lbl);
+			btn.onclick = function(){ setBoard(b.id); };
+			rail.appendChild(btn);
+		});
+		var add = document.createElement("button"); add.className = "rtab";
+		add.title = t("board_add");
+		add.innerHTML = '<span class="rdot radd">+</span><span class="rlbl">' + t("board_add") + '</span>';
+		// + otvorí rovno správcu plôch s kurzorom v pridávacom riadku
+		add.onclick = function(){
+			openBoardsModal();
+			var ti = document.querySelector("#boardAddRow input[type='text']");
+			if(ti) setTimeout(function(){ ti.focus(); }, 0);
+		};
+		rail.appendChild(add);
+	}
+
 	// ---------- render ----------
 	function render(){
+		ensureBoard();
+		renderRail();
 		var q = searchEl.value.trim().toLowerCase();
 		board.innerHTML = "";
 		groupsSorted().forEach(function(g){
+			if(g.boardId !== curBoard) return;
 			var links = linksOf(g.id).filter(function(l){ return matches(l, q); });
 			if (q && links.length===0) return;
 
@@ -796,6 +938,7 @@
 
 		// floating links (no group)
 		floatingLinks().forEach(function(l){
+			if (l.boardId !== curBoard) return;
 			if (!matches(l, q)) return;
 			var t = tileEl(l); t.classList.add("floating");
 			t.style.left = l.x + "px"; t.style.top = l.y + "px";
@@ -928,7 +1071,7 @@
 	function addNote(){
 		var spot = findFreeSpot(20, 20, 180, 110, occupiedRects(null));
 		var nl = { id: uid("n"), type: "note", text: "", color: NOTE_COLORS[0],
-			groupId: null, x: spot.x, y: spot.y, order: state.links.length };
+			groupId: null, boardId: curBoard, x: spot.x, y: spot.y, order: state.links.length };
 		state.links.push(nl);
 		markDirty(); render();
 		var el = board.querySelector('.tile.note[data-id="' + nl.id + '"] .note-body');
@@ -1102,6 +1245,7 @@
 					// (abs. children sit on the board's padding edge, so no padding offset here)
 					var br = board.getBoundingClientRect();
 					link.groupId = null;
+					link.boardId = curBoard;
 					link.x = snap(Math.max(PAD, tr.left - br.left + board.scrollLeft));
 					link.y = snap(Math.max(PAD, tr.top  - br.top  + board.scrollTop));
 					relayoutBoard(link.id);
@@ -1165,6 +1309,7 @@
 				var br = board.getBoundingClientRect();
 				parts.forEach(function(p){
 					p.link.groupId = null;
+					p.link.boardId = curBoard;
 					p.link.x = snap(Math.max(PAD, p.rect.left + d.dx - br.left + board.scrollLeft));
 					p.link.y = snap(Math.max(PAD, p.rect.top  + d.dy - br.top  + board.scrollTop));
 				});
@@ -1377,10 +1522,11 @@
 		var ids = Array.isArray(fixedIds) ? fixedIds : [fixedIds];
 		var items = [];
 		state.groups.forEach(function(g){
+			if(g.boardId !== curBoard) return;   // kolízie riešime len na aktívnej ploche
 			var sec = board.querySelector('.group[data-gid="'+g.id+'"]');
 			items.push({ x:g.x, y:g.y, w:(sec?sec.offsetWidth:(g.w||320)), h:(sec?sec.offsetHeight:(g.h||120)), ref:g });
 		});
-		floatingLinks().forEach(function(l){ var s = tileSize(l.id); items.push({ x:l.x, y:l.y, w:s.w, h:s.h, ref:l }); });
+		floatingLinks().forEach(function(l){ if(l.boardId !== curBoard) return; var s = tileSize(l.id); items.push({ x:l.x, y:l.y, w:s.w, h:s.h, ref:l }); });
 		var fixed = [];
 		items.forEach(function(it, idx){ if(ids.indexOf(it.ref.id)>=0) fixed.push(idx); });
 		if(!fixed.length) return false;
@@ -1402,10 +1548,11 @@
 		var newBottom = g.y + sec.offsetHeight;
 		var items = [];
 		state.groups.forEach(function(og){
+			if(og.boardId !== curBoard) return;
 			var s2 = board.querySelector('.group[data-gid="'+og.id+'"]');
 			items.push({ x:og.x, y:og.y, w:(s2?s2.offsetWidth:(og.w||320)), h:(s2?s2.offsetHeight:(og.h||120)), ref:og });
 		});
-		floatingLinks().forEach(function(l){ var s = tileSize(l.id); items.push({ x:l.x, y:l.y, w:s.w, h:s.h, ref:l }); });
+		floatingLinks().forEach(function(l){ if(l.boardId !== curBoard) return; var s = tileSize(l.id); items.push({ x:l.x, y:l.y, w:s.w, h:s.h, ref:l }); });
 		var gIt = items.find(function(it){ return it.ref.id===gid; });
 		var movers = items.filter(function(it){
 			return it!==gIt && it.y >= newBottom && it.x < gIt.x + gIt.w && gIt.x < it.x + it.w;
@@ -1575,7 +1722,7 @@
 		openLinkModal(t("new_link_free"), {}, function(d){
 			var spot = findFreeSpot(20, 20, 88, 116, occupiedRects(null));
 			var nl = { id: uid("l"), title: d.title, url: d.url, icon: d.icon,
-				label: d.label, bg: d.bg, fg: d.fg, groupId: null, x: spot.x, y: spot.y, order: state.links.length };
+				label: d.label, bg: d.bg, fg: d.fg, groupId: null, boardId: curBoard, x: spot.x, y: spot.y, order: state.links.length };
 			if(d.ping) nl.ping = true;
 			state.links.push(nl);
 			markDirty(); render();
@@ -1643,7 +1790,7 @@
 
 	function addGroup(){
 		openGroupModal(t("new_group"), {}, function(d){
-			state.groups.push({ id: uid("g"), title: d.title, color: d.color, order: state.groups.length });
+			state.groups.push({ id: uid("g"), title: d.title, color: d.color, order: state.groups.length, boardId: curBoard });
 			markDirty(); render();
 		});
 	}
@@ -1662,6 +1809,126 @@
 		state.links = state.links.filter(function(x){return x.groupId!==gid;});
 		markDirty(); render();
 	}
+
+	// ---------- správa plôch: názov, farba bodky, pozícia, skryť/zobraziť, zmazať ----------
+	var boardsModal = document.getElementById("boardsModal");
+	var EYE = '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+	var EYE_OFF = '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+	function bmBtn(html, title, fn){
+		var x = document.createElement("button"); x.className = "btn";
+		x.innerHTML = html; x.title = title; x.onclick = fn;
+		return x;
+	}
+	// poradie plôch sa mení ťahaním riadku za úchyt ⠿
+	function enableRowDrag(row, handle){
+		handle.addEventListener("pointerdown", function(e){
+			if(e.button !== 0) return;
+			e.preventDefault(); e.stopPropagation();
+			var box = document.getElementById("boardsList");
+			row.classList.add("dragging");
+			function move(ev){
+				var others = [].slice.call(box.querySelectorAll(".board-row:not(.dragging)"));
+				var next = null;
+				for(var i = 0; i < others.length; i++){
+					var r = others[i].getBoundingClientRect();
+					if(ev.clientY < r.top + r.height / 2){ next = others[i]; break; }
+				}
+				box.insertBefore(row, next);   // null → na koniec
+			}
+			function up(){
+				document.removeEventListener("pointermove", move);
+				document.removeEventListener("pointerup", up);
+				row.classList.remove("dragging");
+				// poradie v DOM → order v dátach
+				[].forEach.call(box.querySelectorAll(".board-row"), function(rw, k){
+					var bb = state.boards.find(function(x){ return x.id === rw.dataset.bid; });
+					if(bb) bb.order = k;
+				});
+				markDirty(); render(); buildBoardsList();
+			}
+			document.addEventListener("pointermove", move);
+			document.addEventListener("pointerup", up);
+		});
+	}
+	function toggleBoardHidden(b){
+		if(!b.hidden && visibleBoards().length === 1){ setHint(t("board_last_visible")); return; }
+		b.hidden = !b.hidden;
+		markDirty(); render(); buildBoardsList();
+	}
+	function deleteBoard(b){
+		if(state.boards.length === 1){ setHint(t("board_last")); return; }
+		if(!confirm(t("board_del_q", { title: b.title }))) return;
+		state.boards = state.boards.filter(function(x){ return x.id !== b.id; });
+		var fb = boardsSorted()[0].id;   // obsah sa presunie na prvú plochu, nemaže sa
+		state.groups.forEach(function(g){ if(g.boardId === b.id) g.boardId = fb; });
+		state.links.forEach(function(l){ if(l.groupId == null && l.boardId === b.id) l.boardId = fb; });
+		markDirty(); render(); buildBoardsList();
+	}
+	function buildBoardsList(){
+		var box = document.getElementById("boardsList");
+		box.innerHTML = "";
+		boardsSorted().forEach(function(b){
+			var row = document.createElement("div");
+			row.className = "board-row" + (b.hidden ? " hid" : "");
+			row.dataset.bid = b.id;
+			var handle = document.createElement("span"); handle.className = "bm-handle";
+			handle.textContent = "⠿"; handle.title = t("board_drag");
+			enableRowDrag(row, handle);
+			var col = document.createElement("input"); col.type = "color"; col.value = b.color || "#5b8cff";
+			col.title = b.title;
+			col.oninput = function(){ b.color = col.value; markDirty(); render(); };
+			var field = document.createElement("div"); field.className = "bm-field";
+			var ti = document.createElement("input"); ti.type = "text"; ti.value = b.title;
+			ti.onchange = function(){ b.title = ti.value.trim() || b.title; ti.value = b.title; markDirty(); render(); };
+			var tools = document.createElement("div"); tools.className = "bm-tools";
+			tools.appendChild(bmBtn(b.hidden ? EYE_OFF : EYE, t(b.hidden ? "board_show" : "board_hide"),
+				function(){ toggleBoardHidden(b); }));
+			field.appendChild(ti); field.appendChild(tools);
+			var del = bmBtn("✕", t("board_del"), function(){ deleteBoard(b); });
+			row.appendChild(handle); row.appendChild(col); row.appendChild(field); row.appendChild(del);
+			box.appendChild(row);
+		});
+		buildAddRow();
+	}
+	// prázdny riadok pod zoznamom: farba + názov, Enter alebo + pridá novú plochu
+	function buildAddRow(){
+		var box = document.getElementById("boardAddRow");
+		box.innerHTML = "";
+		var row = document.createElement("div"); row.className = "board-row add-row";
+		var col = document.createElement("input"); col.type = "color"; col.value = "#5b8cff";
+		var touched = false;
+		col.oninput = function(){ touched = true; };
+		var spacer = document.createElement("span"); spacer.className = "bm-spacer";
+		var field = document.createElement("div"); field.className = "bm-field";
+		var ti = document.createElement("input"); ti.type = "text"; ti.placeholder = t("board_new_ph");
+		ti.style.paddingRight = "11px";   // bez oka vnútri netreba miesto na tlačidlá
+		var add = bmBtn("+", t("board_add"), doAdd);
+		function doAdd(){
+			var name = ti.value.trim();
+			if(!name){ ti.focus(); return; }
+			var nb = { id: uid("b"), title: name, order: state.boards.length };
+			if(touched) nb.color = col.value;   // farba len ak ju používateľ vybral
+			state.boards.push(nb);
+			markDirty(); render(); buildBoardsList();
+		}
+		ti.addEventListener("keydown", function(e){
+			if(e.key === "Enter"){ e.preventDefault(); e.stopPropagation(); doAdd(); }
+		});
+		field.appendChild(ti);
+		row.appendChild(spacer); row.appendChild(col); row.appendChild(field); row.appendChild(add);
+		box.appendChild(row);
+	}
+	function openBoardsModal(){ buildBoardsList(); boardsModal.classList.remove("hidden"); }
+	function closeBoardsModal(){ boardsModal.classList.add("hidden"); }
+	document.getElementById("boardsBtn").onclick = openBoardsModal;
+	// bez zatváracieho tlačidla: klik mimo karty alebo Esc
+	boardsModal.addEventListener("mousedown", function(e){ if(e.target === boardsModal) closeBoardsModal(); });
+	boardsModal.addEventListener("keydown", function(e){
+		if(e.key === "Escape"){ e.preventDefault(); e.stopPropagation(); closeBoardsModal(); }
+		if(e.key === "Enter"){ e.preventDefault(); e.stopPropagation();
+			if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+			closeBoardsModal(); }
+	});
 
 	function markDirty(){
 		dirty = true;
@@ -2015,6 +2282,7 @@
 			// pustené na voľnú plochu → samostatná dlaždica
 			var br = board.getBoundingClientRect();
 			nl.groupId = null;
+			nl.boardId = curBoard;
 			nl.x = snap(Math.max(PAD, e.clientX - br.left + board.scrollLeft - TILE_W / 2));
 			nl.y = snap(Math.max(PAD, e.clientY - br.top  + board.scrollTop  - TILE_H / 2));
 			state.links.push(nl);
@@ -2134,6 +2402,14 @@
 				if(!href) return;
 				window.open(href, "_blank", "noopener");
 			} else {
+				// nič na aktívnej ploche – najprv skús ostatné plochy, až potom webové vyhľadávanie
+				var lq = q.toLowerCase(), other = null;
+				visibleBoards().forEach(function(b){
+					if(other || b.id === curBoard) return;
+					var has = state.links.some(function(l){ return matches(l, lq) && boardOfLink(l) === b.id; });
+					if(has) other = b;
+				});
+				if(other){ setBoard(other.id); setHint(t("search_switched", { title: other.title })); return; }
 				var eng = (state.meta && state.meta.searchUrl) || "https://www.google.com/search?q=";
 				window.open(eng + encodeURIComponent(q), "_blank", "noopener");
 			}
@@ -2143,6 +2419,22 @@
 	document.addEventListener("keydown", function(e){
 		if(e.key==="/" && document.activeElement!==searchEl){ e.preventDefault(); openSearch(); }
 		if(e.key==="Escape"){ closeSearch(); searchEl.blur(); clearSelection(); document.body.classList.remove("gear-open"); }
+		// Alt+1…9 prepína plochy (Ctrl+čísla používa prehliadač na svoje taby)
+		if(e.altKey && !e.ctrlKey && !e.metaKey && e.key >= "1" && e.key <= "9"){
+			var vb = visibleBoards(), ix = e.key.charCodeAt(0) - 49;
+			if(vb[ix]){ e.preventDefault(); setBoard(vb[ix].id); }
+		}
+		// Ctrl+šípka hore/dole cykluje medzi plochami v poradí railu
+		if(e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "ArrowUp" || e.key === "ArrowDown")){
+			var vb2 = visibleBoards();
+			if(vb2.length > 1){
+				var ci = 0;
+				vb2.forEach(function(b, i){ if(b.id === curBoard) ci = i; });
+				var ni = (ci + (e.key === "ArrowDown" ? 1 : -1) + vb2.length) % vb2.length;
+				e.preventDefault();
+				setBoard(vb2[ni].id);
+			}
+		}
 	});
 
 	applyI18n();

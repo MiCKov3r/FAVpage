@@ -10,6 +10,7 @@ A personal start page / homelab dashboard in the spirit of Homarr or Heimdall �
 
 - **Free-form layout** — drag & drop tiles and groups anywhere on a 20 px grid. Elements never overlap: dropping onto an occupied spot pushes neighbours down ("make room"), and when a group shrinks, the elements below slide back up.
 - **Groups** — resizable containers with custom titles and colors. Tiles can live inside a group or float freely on the board.
+- **Multiple boards (tabs)** — a vertical dot rail on the left edge switches between boards (e.g. "Home", "Work"); names show on hover and the last item is a "+" that opens the board manager with the cursor ready in the new-board row. Everything stays in the one `links.js` (existing data migrates to the first board automatically), the last active board is remembered per browser, and `Alt+1…9` or `Ctrl+↑`/`Ctrl+↓` (cycling) switch from the keyboard. When a search has no hit on the current board, `Enter` jumps to the board that has one. A manager in the gear menu renames boards, recolors their rail dots, reorders them by drag & drop, hides/shows and deletes them (a deleted board's content moves to the first board), and adds new ones via an empty row below the list.
 - **Open a whole group** — hovering over a group reveals a button in its header that opens every link of the group in new tabs (respecting the active search filter). Over 8 links asks for confirmation first; if the browser's pop-up blocker eats some tabs, a hint explains how to allow them.
 - **Lasso multi-select** — in edit mode, drag across empty space to select multiple tiles, then move the whole selection at once (onto the board or into a group), keeping relative spacing.
 - **Sticky notes** — pastel notes (4 colors) that live on the board like tiles. Click a note and type — it edits in place, no dialog; the first line renders bold as a title and changes save automatically. Resize it anytime by the bottom-right grip (shown on hover), create one from the gear menu (the cursor jumps straight in), move/recolor/delete it in edit mode, and search looks into note text too.
@@ -52,6 +53,8 @@ As a safety net, every save sanitizes icon data: any `data:` icon that is not a 
 |---|---|
 | `/` | open & focus search |
 | `↓` / `↑` | move between search results |
+| `Alt+1…9` | switch to board 1…9 |
+| `Ctrl+↑` / `Ctrl+↓` | cycle through boards |
 | `Enter` | open the highlighted result — or search the web when nothing matches; confirm dialog |
 | `Esc` | clear search / cancel selection / close dialog |
 

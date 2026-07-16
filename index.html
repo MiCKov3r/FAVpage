@@ -100,6 +100,10 @@
 	#gearMenu .btn { opacity: 1; }
 	/* neuložené zmeny: koliesko svieti akcentom aj so zavretým menu */
 	#gearBtn.dirty { opacity: 1; border-color: var(--accent); color: var(--accent); }
+	/* potvrdenie úprav: počas režimu úprav trvalo viditeľné ✓ v hlavičke (netreba otvárať menu) */
+	#doneBtn { display: none; }
+	body.editing #doneBtn { display: inline-flex; opacity: 1;
+		background: var(--accent); border-color: var(--accent); color: #fff; }
 
 	main {
 		position: relative;
@@ -235,6 +239,62 @@
 	.note-colors button { width: 14px; height: 14px; border-radius: 50%;
 		border: 1px solid rgba(0,0,0,.25); cursor: pointer; padding: 0; }
 	.note-colors button.cur { outline: 2px solid var(--accent); outline-offset: 1px; }
+	/* widgety (hodiny, šprint): dlaždice bez linku, obsah sa kreslí z dát a času;
+	   úpravy (presun, resize, nastavenia) len v režime úprav */
+	.tile.widget { display: flex; flex-direction: column; align-items: stretch;
+		width: auto; min-width: 150px; padding: 12px 14px; text-align: left; cursor: default; }
+	.tile.widget::before { display: none; }
+	.tile.widget:hover { transform: none; border-color: var(--line); }
+	body.editing .tile.widget { cursor: grab; }
+	/* obsah vypĺňa celú výšku widgetu, aby reagoval aj na vertikálne rozťahovanie */
+	.wg-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+	.wg-clock .wg-body { justify-content: center; }
+	/* hodiny (variant: čas + dátum + ISO týždeň s paritou) */
+	.wg-clock .clk-time { font-size: 30px; font-weight: 700; line-height: 1.1;
+		font-variant-numeric: tabular-nums; }
+	.wg-clock .clk-date { font-size: 12px; color: var(--muted); margin-top: 1px; }
+	.wg-clock .clk-wk { display: inline-block; margin-top: 7px; font-size: 10.5px; font-weight: 700;
+		background: var(--group-bg); border: 1px solid var(--line); border-radius: 8px; padding: 3px 9px; }
+	.wg-clock .clk-wk i { font-style: normal; color: var(--accent); }
+	/* šprint (variant: kalendárny pásik 14 dní) */
+	.tile.widget.wg-sprint { min-width: 250px; }
+	.wg-sprint .sp-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+	.wg-sprint .sp-team { font-size: 12px; font-weight: 700; }
+	.wg-sprint .sp-sub { font-size: 10.5px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+	.wg-sprint .sp-cal { display: grid; grid-template-columns: repeat(14, 1fr); gap: 3px;
+		flex: 1; align-content: stretch; }   /* bunky rastú aj s výškou widgetu */
+	.wg-sprint .sp-cal i { min-height: 24px; border-radius: 6px; background: var(--bg2);
+		border: 1px solid var(--line); display: grid; place-items: center;
+		font-size: 9px; font-style: normal; color: var(--muted); }
+	.wg-sprint .sp-cal i.wke { opacity: .38; }
+	.wg-sprint .sp-cal i.done { color: #fff; border-color: transparent; }
+	.wg-sprint .sp-cal i.today { outline: 2px solid currentColor; outline-offset: 1px; font-weight: 700; }
+	/* nastavenia widgetu: rad farieb (5 prednastavených + vlastná paleta) */
+	.wsw { display: flex; gap: 7px; margin-top: 6px; align-items: center; }
+	.wsw button { width: 24px; height: 24px; border-radius: 8px; border: 1px solid var(--line);
+		cursor: pointer; padding: 0; }
+	.wsw button.on { outline: 2px solid var(--text); outline-offset: 2px; }
+	.wsw input[type="color"] { width: 28px; height: 26px; padding: 2px; cursor: pointer; }
+	.wsw input[type="color"].on { outline: 2px solid var(--text); outline-offset: 2px; }
+	/* switch párny/nepárny v nastaveniach šprintu: klik prehodí posuvník */
+	.wswitch { position: relative; display: inline-flex; margin-top: 6px; background: var(--bg2);
+		border: 1px solid var(--line); border-radius: 10px; padding: 3px; cursor: pointer;
+		user-select: none; }
+	.wswitch span { position: relative; z-index: 1; flex: 1; text-align: center;
+		padding: 5px 16px; font-size: 12px; color: var(--muted); transition: color .15s;
+		white-space: nowrap; }
+	.wswitch span.on { color: #fff; font-weight: 600; }
+	.wswitch i.thumb { position: absolute; top: 3px; bottom: 3px; left: 3px;
+		width: calc(50% - 3px); background: var(--accent); border-radius: 8px;
+		transition: transform .18s; }
+	/* výber druhu widgetu (dialóg Pridať widget) */
+	.wpick { display: flex; align-items: center; gap: 10px; width: 100%; background: none;
+		border: none; color: var(--text); cursor: pointer; padding: 9px 10px;
+		border-radius: 8px; font-size: 13px; text-align: left; }
+	.wpick:hover { background: var(--tile-h); }
+	.wpick svg { width: 16px; height: 16px; flex: 0 0 16px; fill: none; stroke: var(--muted);
+		stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+	.wpick:hover svg { stroke: var(--accent); }
 	.tile .mini { position: absolute; top: -7px; right: -7px; display: none; gap: 3px; }
 	body.editing .tile .mini { display: flex; }
 	body.editing .tile { cursor: grab; }
@@ -351,6 +411,8 @@
 	<input id="search" type="search" placeholder="Hľadať…  (/ )" autocomplete="off" data-i18n-ph="search_ph">
 	<button class="btn icon" id="searchBtn" title="Hľadať (/)" aria-label="Hľadať" data-i18n-title="search_title" data-i18n-aria="search_aria">
 		<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+	<button class="btn icon" id="doneBtn" title="Hotovo" aria-label="Hotovo" data-i18n-title="done" data-i18n-aria="done">
+		<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
 	<div id="gearWrap">
 		<button class="btn icon" id="gearBtn" title="Menu" aria-label="Menu" data-i18n-title="menu_title" data-i18n-aria="menu_title">
 			<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -366,6 +428,8 @@
 				<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg></button>
 			<button class="btn icon" id="addNote" title="Pridať poznámku" aria-label="Pridať poznámku" data-i18n-title="add_note" data-i18n-aria="add_note">
 				<svg viewBox="0 0 24 24"><path d="M21 3H3v18h12l6-6z"/><polyline points="15 21 15 15 21 15"/></svg></button>
+			<button class="btn icon" id="addWidget" title="Pridať widget" aria-label="Pridať widget" data-i18n-title="add_widget" data-i18n-aria="add_widget">
+				<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="17.5" y1="14" x2="17.5" y2="21"/><line x1="14" y1="17.5" x2="21" y2="17.5"/></svg></button>
 			<button class="btn icon" id="boardsBtn" title="Správa plôch" aria-label="Správa plôch" data-i18n-title="boards_btn" data-i18n-aria="boards_btn">
 				<svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></button>
 			<button class="btn icon" id="embedIcons" title="Stiahnuť a vložiť ikony do links.js (offline)" aria-label="Vložiť ikony" data-i18n-title="embed_title" data-i18n-aria="embed_aria">
@@ -437,6 +501,31 @@
 	</div>
 </div>
 
+<div class="modal hidden" id="widgetPickModal">
+	<div class="modal-card" style="width:min(300px,92vw)">
+		<h3 data-i18n="add_widget">Pridať widget</h3>
+		<div id="widgetPickList">
+			<button class="wpick" data-kind="clock">
+				<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+				<span data-i18n="wg_clock_pick">Hodiny — čas, dátum, týždeň</span></button>
+			<button class="wpick" data-kind="sprint">
+				<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+				<span data-i18n="wg_sprint_pick">Šprint — dvojtýždňový pásik tímu</span></button>
+		</div>
+	</div>
+</div>
+
+<div class="modal hidden" id="widgetModal">
+	<div class="modal-card">
+		<h3 id="widgetModalTitle">Widget</h3>
+		<div id="widgetFields"></div>
+		<div class="modal-actions">
+			<button class="btn" id="w-cancel" data-i18n="cancel">Zrušiť</button>
+			<button class="btn primary" id="w-save" data-i18n="save">Uložiť</button>
+		</div>
+	</div>
+</div>
+
 <div class="modal hidden" id="boardsModal">
 	<div class="modal-card">
 		<h3 data-i18n="boards_title">Správa plôch</h3>
@@ -475,6 +564,27 @@
 			add_note: "Pridať poznámku",
 			note_ph: "Píš sem…",
 			resize_note: "Ťahaj pre zmenu veľkosti poznámky",
+			add_widget: "Pridať widget",
+			wg_clock_pick: "Hodiny — čas, dátum, týždeň",
+			wg_sprint_pick: "Šprint — dvojtýždňový pásik tímu",
+			wg_clock_title: "Hodiny — nastavenia",
+			wg_sprint_title: "Šprint — nastavenia",
+			wg_clock: "hodiny",
+			wg_sprint: "šprint",
+			clk_h24: "24-hodinový formát",
+			clk_seconds: "zobrazovať sekundy",
+			clk_date: "zobrazovať dátum",
+			clk_week: "číslo ISO týždňa (párny/nepárny)",
+			wk_label: "týždeň {n}",
+			wk_even: "párny",
+			wk_odd: "nepárny",
+			sp_name: "Názov tímu",
+			sp_name_default: "Tím",
+			sp_start: "Šprint začína v týždni",
+			sp_color: "Farba tímu",
+			sp_custom: "Vlastná farba – otvorí paletu",
+			sp_day: "deň {d}/14",
+			sprint_short: "Š{n}",
 			boards_btn: "Správa plôch",
 			boards_title: "Správa plôch",
 			board_add: "Pridať plochu",
@@ -570,6 +680,27 @@
 			add_note: "Add note",
 			note_ph: "Type here…",
 			resize_note: "Drag to resize the note",
+			add_widget: "Add widget",
+			wg_clock_pick: "Clock — time, date, week",
+			wg_sprint_pick: "Sprint — two-week team strip",
+			wg_clock_title: "Clock — settings",
+			wg_sprint_title: "Sprint — settings",
+			wg_clock: "clock",
+			wg_sprint: "sprint",
+			clk_h24: "24-hour format",
+			clk_seconds: "show seconds",
+			clk_date: "show date",
+			clk_week: "ISO week number (even/odd)",
+			wk_label: "week {n}",
+			wk_even: "even",
+			wk_odd: "odd",
+			sp_name: "Team name",
+			sp_name_default: "Team",
+			sp_start: "Sprint starts on week",
+			sp_color: "Team color",
+			sp_custom: "Custom color – opens the palette",
+			sp_day: "day {d}/14",
+			sprint_short: "S{n}",
 			boards_btn: "Manage boards",
 			boards_title: "Manage boards",
 			board_add: "Add board",
@@ -1078,9 +1209,196 @@
 		if(el) el.focus();
 	}
 
+	// ---------- widgety: hodiny a šprint (jeden widget = jeden tím) ----------
+	var SPRINT_COLORS = ["#5b8cff", "#46c46a", "#e0b050", "#e05252", "#9b6dd6"];
+	var CLK_DAYS = {
+		sk: ["nedeľa","pondelok","utorok","streda","štvrtok","piatok","sobota"],
+		en: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+	};
+	function pad2(n){ return (n < 10 ? "0" : "") + n; }
+	function escHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+	// ISO týždeň (prvý štvrtok roka) – parita určuje štart šprintu, funguje cez prelom rokov
+	function isoWeek(d){
+		var x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+		var day = (x.getUTCDay() + 6) % 7;
+		x.setUTCDate(x.getUTCDate() - day + 3);
+		var firstThu = new Date(Date.UTC(x.getUTCFullYear(), 0, 4));
+		var fday = (firstThu.getUTCDay() + 6) % 7;
+		firstThu.setUTCDate(firstThu.getUTCDate() - fday + 3);
+		return 1 + Math.round((x - firstThu) / 604800000);
+	}
+	// šprint = 14 dní od pondelka; parity 0 = štart v párnych ISO týždňoch, 1 = v nepárnych
+	function sprintInfo(parity){
+		var now = new Date(); now.setHours(0,0,0,0);
+		var monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+		var start = new Date(monday);
+		if(isoWeek(monday) % 2 !== (parity ? 1 : 0)) start.setDate(start.getDate() - 7);
+		var dayIdx = Math.round((now - start) / 86400000);
+		return { start: start, day: dayIdx + 1, week: isoWeek(start) };
+	}
+	function renderWidget(l, el){
+		if(!el) return;
+		var cfg = l.cfg || {};
+		if(l.kind === "clock"){
+			var n = new Date();
+			var h = n.getHours(), suffix = "";
+			if(cfg.h24 === false){ suffix = h >= 12 ? " PM" : " AM"; h = h % 12 || 12; }
+			var htm = '<div class="clk-time">' + h + ":" + pad2(n.getMinutes()) +
+				(cfg.seconds ? ":" + pad2(n.getSeconds()) : "") + suffix + '</div>';
+			if(cfg.date !== false){
+				htm += '<div class="clk-date">' + CLK_DAYS[lang === "sk" ? "sk" : "en"][n.getDay()] + " " +
+					n.getDate() + ". " + (n.getMonth() + 1) + ". " + n.getFullYear() + '</div>';
+			}
+			if(cfg.week !== false){
+				var w = isoWeek(n);
+				htm += '<div class="clk-wk">' + t("wk_label", { n: w }) + ' · <i>' +
+					t(w % 2 ? "wk_odd" : "wk_even") + '</i></div>';
+			}
+			el.innerHTML = htm;
+		} else if(l.kind === "sprint"){
+			var s = sprintInfo(cfg.parity);
+			var color = cfg.color || SPRINT_COLORS[0];
+			var cells = "";
+			for(var i = 0; i < 14; i++){
+				var d = new Date(s.start); d.setDate(s.start.getDate() + i);
+				var cls = ((d.getDay() === 0 || d.getDay() === 6) ? "wke " : "") +
+					(i < s.day - 1 ? "done " : "") + (i === s.day - 1 ? "today" : "");
+				cells += '<i class="' + cls + '" style="' +
+					(i < s.day - 1 ? "background:" + escHtml(color) + ";" : "") +
+					(i === s.day - 1 ? "color:" + escHtml(color) : "") + '">' + d.getDate() + '</i>';
+			}
+			el.innerHTML = '<div class="sp-head"><span class="sp-team" style="color:' + escHtml(color) + '">' +
+				escHtml(cfg.name || "") + '</span><span class="sp-sub">' + t("sprint_short", { n: s.week }) +
+				' · ' + t("sp_day", { d: s.day }) + '</span></div><div class="sp-cal">' + cells + '</div>';
+		}
+	}
+	function widgetEl(l){
+		var d = document.createElement("div");
+		d.className = "tile widget wg-" + l.kind;
+		d.dataset.id = l.id;
+		if(l.w) d.style.width = l.w + "px";
+		if(l.h) d.style.minHeight = l.h + "px";
+		if(selected.has(l.id)) d.classList.add("selected");
+		var body = document.createElement("div"); body.className = "wg-body";
+		d.appendChild(body);
+		renderWidget(l, body);
+		if(editing){
+			var mini = document.createElement("div"); mini.className = "mini";
+			var ed = document.createElement("button"); ed.className = "edit"; ed.textContent = "✎"; ed.title = t("edit");
+			ed.onclick = function(e){ e.preventDefault(); e.stopPropagation(); openWidgetModal(l); };
+			var dl = document.createElement("button"); dl.className = "del"; dl.textContent = "✕"; dl.title = t("del");
+			dl.onclick = function(e){ e.preventDefault(); e.stopPropagation(); removeLink(l.id); };
+			mini.appendChild(ed); mini.appendChild(dl);
+			d.appendChild(mini);
+		}
+		var rh = document.createElement("div"); rh.className = "resize-handle";
+		rh.title = t("resize_note");
+		enableNoteResize(d, rh, l);
+		d.appendChild(rh);
+		return d;
+	}
+	// nový widget: hodiny rovno, šprint si hneď vypýta nastavenia (názov/parita/farba)
+	function addWidget(kind){
+		var cfg = kind === "clock"
+			? { h24: true, seconds: false, date: true, week: true }
+			: { name: t("sp_name_default"), parity: 0, color: SPRINT_COLORS[0] };
+		var spot = findFreeSpot(20, 20, kind === "sprint" ? 250 : 190, 110, occupiedRects(null));
+		var nl = { id: uid("w"), type: "widget", kind: kind, cfg: cfg,
+			groupId: null, boardId: curBoard, x: spot.x, y: spot.y, order: state.links.length };
+		state.links.push(nl);
+		markDirty(); render();
+		if(kind === "sprint") openWidgetModal(nl);
+	}
+	// ---------- nastavenia widgetu (každý widget má vlastné) ----------
+	var widgetModal = document.getElementById("widgetModal");
+	var widgetSave = null;
+	function openWidgetModal(l){
+		var box = document.getElementById("widgetFields");
+		var cfg = l.cfg = l.cfg || {};
+		box.innerHTML = "";
+		document.getElementById("widgetModalTitle").textContent =
+			t(l.kind === "clock" ? "wg_clock_title" : "wg_sprint_title");
+		if(l.kind === "clock"){
+			var inputs = {};
+			[["h24","clk_h24"],["seconds","clk_seconds"],["date","clk_date"],["week","clk_week"]].forEach(function(o){
+				var lab = document.createElement("label"); lab.className = "check-row";
+				var cb = document.createElement("input"); cb.type = "checkbox";
+				cb.checked = (o[0] === "seconds") ? !!cfg.seconds : cfg[o[0]] !== false;
+				inputs[o[0]] = cb;
+				lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t(o[1])));
+				box.appendChild(lab);
+			});
+			widgetSave = function(){
+				cfg.h24 = inputs.h24.checked; cfg.seconds = inputs.seconds.checked;
+				cfg.date = inputs.date.checked; cfg.week = inputs.week.checked;
+			};
+		} else {
+			var l1 = document.createElement("label"); l1.textContent = t("sp_name");
+			var ni = document.createElement("input"); ni.type = "text"; ni.value = cfg.name || "";
+			var l2 = document.createElement("label"); l2.textContent = t("sp_start");
+			// párny/nepárny ako switch – prepína sa jedným klikom
+			var par = cfg.parity ? 1 : 0;
+			var sw2 = document.createElement("div"); sw2.className = "wswitch";
+			var th = document.createElement("i"); th.className = "thumb";
+			var s0 = document.createElement("span"); s0.textContent = t("wk_even");
+			var s1 = document.createElement("span"); s1.textContent = t("wk_odd");
+			function paintPar(){
+				s0.classList.toggle("on", par === 0);
+				s1.classList.toggle("on", par === 1);
+				th.style.transform = par ? "translateX(100%)" : "none";
+			}
+			sw2.onclick = function(){ par = par ? 0 : 1; paintPar(); };
+			sw2.appendChild(th); sw2.appendChild(s0); sw2.appendChild(s1);
+			paintPar();
+			var l3 = document.createElement("label"); l3.textContent = t("sp_color");
+			var sw = document.createElement("div"); sw.className = "wsw";
+			var chosen = cfg.color || SPRINT_COLORS[0];
+			var custom = document.createElement("input"); custom.type = "color"; custom.value = chosen;
+			function paint(){
+				[].forEach.call(sw.querySelectorAll("button"), function(b){
+					b.classList.toggle("on", b.dataset.c === chosen);
+				});
+				custom.classList.toggle("on", SPRINT_COLORS.indexOf(chosen) < 0);
+			}
+			SPRINT_COLORS.forEach(function(c){
+				var b = document.createElement("button"); b.type = "button";
+				b.style.background = c; b.dataset.c = c; b.title = c;
+				b.onclick = function(){ chosen = c; custom.value = c; paint(); };
+				sw.appendChild(b);
+			});
+			custom.title = t("sp_custom");
+			custom.oninput = function(){ chosen = custom.value; paint(); };
+			sw.appendChild(custom);
+			paint();
+			box.appendChild(l1); box.appendChild(ni);
+			box.appendChild(l2); box.appendChild(sw2);
+			box.appendChild(l3); box.appendChild(sw);
+			setTimeout(function(){ ni.focus(); ni.select(); }, 0);
+			widgetSave = function(){
+				cfg.name = ni.value.trim() || cfg.name;
+				cfg.parity = par;
+				cfg.color = chosen;
+			};
+		}
+		widgetModal.classList.remove("hidden");
+	}
+	function closeWidgetModal(){ widgetModal.classList.add("hidden"); widgetSave = null; }
+	function commitWidgetModal(){
+		var fn = widgetSave; closeWidgetModal();
+		if(fn){ fn(); markDirty(); render(); }
+	}
+	document.getElementById("w-save").onclick = commitWidgetModal;
+	document.getElementById("w-cancel").onclick = closeWidgetModal;
+	widgetModal.addEventListener("mousedown", function(e){ if(e.target === widgetModal) closeWidgetModal(); });
+	widgetModal.addEventListener("keydown", function(e){
+		if(e.key === "Escape"){ e.preventDefault(); e.stopPropagation(); closeWidgetModal(); }
+		if(e.key === "Enter"){ e.preventDefault(); e.stopPropagation(); commitWidgetModal(); }
+	});
+
 	var tileColors = {};   // id → { src, color }: dominantná farba ikony pre hover okraj
 	function tileEl(l){
 		if(l.type === "note") return noteEl(l);
+		if(l.type === "widget") return widgetEl(l);
 		var a = document.createElement("a");
 		a.className = "tile";
 		a.draggable = false;   // we use pointer-based dragging, not native HTML5 drag
@@ -1742,7 +2060,8 @@
 	function removeLink(id){
 		var l = state.links.find(function(x){return x.id===id;});
 		if(!l) return;
-		var name = l.title || (l.text || "").split("\n")[0].slice(0, 40) || "…";   // poznámka nemá title
+		var name = l.title || (l.cfg && l.cfg.name) || (l.text || "").split("\n")[0].slice(0, 40) ||
+			(l.type === "widget" ? t("wg_" + l.kind) : "…");   // poznámka/widget nemá title
 		if(!confirm(t("del_link_q", { title: name }))) return;
 		var gid = l.groupId;
 		var sec = gid ? board.querySelector('.group[data-gid="'+gid+'"]') : null;
@@ -1972,7 +2291,7 @@
 		setHint(t("embed_progress", { i: 0, n: total }));
 		for(var i=0;i<state.links.length;i++){
 			var l = state.links[i];
-			if(l.type === "note") continue;   // poznámky ikony nemajú
+			if(l.type === "note" || l.type === "widget") continue;   // poznámky a widgety ikony nemajú
 			// only a data:image counts as embedded — a broken non-image data: gets re-fetched
 			if(/^data:image\//i.test(cleanIcon(l.icon))) continue;
 			var cands = iconCandidates(l), uri = null, sawNonImage = false;
@@ -2296,9 +2615,20 @@
 
 	// ---------- wire up ----------
 	document.getElementById("editBtn").onclick = toggleEdit;
+	document.getElementById("doneBtn").onclick = toggleEdit;
 	document.getElementById("addGroup").onclick = addGroup;
 	document.getElementById("addLink").onclick = addFloatingLink;
 	document.getElementById("addNote").onclick = addNote;
+	// jedna položka „Pridať widget“ – druh sa vyberá zo zoznamu v dialógu
+	var widgetPickModal = document.getElementById("widgetPickModal");
+	document.getElementById("addWidget").onclick = function(){ widgetPickModal.classList.remove("hidden"); };
+	[].forEach.call(document.querySelectorAll("#widgetPickList .wpick"), function(b){
+		b.onclick = function(){ widgetPickModal.classList.add("hidden"); addWidget(b.dataset.kind); };
+	});
+	widgetPickModal.addEventListener("mousedown", function(e){ if(e.target === widgetPickModal) widgetPickModal.classList.add("hidden"); });
+	widgetPickModal.addEventListener("keydown", function(e){
+		if(e.key === "Escape"){ e.preventDefault(); e.stopPropagation(); widgetPickModal.classList.add("hidden"); }
+	});
 	document.getElementById("embedIcons").onclick = embedIcons;
 	document.getElementById("connectBtn").onclick = connect;
 	document.getElementById("saveBtn").onclick = saveToFile;
@@ -2418,7 +2748,8 @@
 	});
 	document.addEventListener("keydown", function(e){
 		if(e.key==="/" && document.activeElement!==searchEl){ e.preventDefault(); openSearch(); }
-		if(e.key==="Escape"){ closeSearch(); searchEl.blur(); clearSelection(); document.body.classList.remove("gear-open"); }
+		if(e.key==="Escape"){ closeSearch(); searchEl.blur(); clearSelection(); document.body.classList.remove("gear-open");
+			document.getElementById("widgetPickModal").classList.add("hidden"); }
 		// Alt+1…9 prepína plochy (Ctrl+čísla používa prehliadač na svoje taby)
 		if(e.altKey && !e.ctrlKey && !e.metaKey && e.key >= "1" && e.key <= "9"){
 			var vb = visibleBoards(), ix = e.key.charCodeAt(0) - 49;
@@ -2446,6 +2777,17 @@
 	setInterval(checkFileForUpdates, 60000);
 	pingAll();
 	setInterval(pingAll, PING_INTERVAL);
+	// tikanie widgetov: hodiny každú sekundu, šprint sa prekreslí pri zmene dňa (polnoc)
+	var wgDay = new Date().getDate();
+	setInterval(function(){
+		var dayNow = new Date().getDate();
+		[].forEach.call(board.querySelectorAll(".tile.widget"), function(el){
+			var l = state.links.find(function(x){ return x.id === el.dataset.id; });
+			if(!l) return;
+			if(l.kind === "clock" || dayNow !== wgDay) renderWidget(l, el.querySelector(".wg-body"));
+		});
+		wgDay = dayNow;
+	}, 1000);
 })();
 </script>
 <script>
